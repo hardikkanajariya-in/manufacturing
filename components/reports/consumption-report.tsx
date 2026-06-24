@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import {
   Bar,
   BarChart,
@@ -24,6 +25,11 @@ import { formatNumber } from "@/lib/helpers";
 
 export function ConsumptionReport() {
   const { productionRecords } = useManufacturing();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const consumptionTotals = new Map<
     string,
@@ -71,16 +77,20 @@ export function ConsumptionReport() {
         </CardHeader>
         <CardContent>
           <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={11} />
-                <YAxis tickLine={false} axisLine={false} fontSize={12} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="total" name="Total Consumed" fill="var(--chart-3)" radius={[2, 2, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {mounted ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={11} />
+                  <YAxis tickLine={false} axisLine={false} fontSize={12} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="total" name="Total Consumed" fill="var(--chart-3)" radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full w-full bg-muted/10 rounded-lg animate-pulse" />
+            )}
           </div>
         </CardContent>
       </Card>

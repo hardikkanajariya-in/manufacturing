@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import {
   Bar,
   BarChart,
@@ -15,6 +16,11 @@ import { isSameMonth } from "@/lib/helpers";
 
 export function MaterialConsumptionChart() {
   const { productionRecords } = useManufacturing();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const consumptionMap = new Map<string, number>();
 
@@ -41,26 +47,30 @@ export function MaterialConsumptionChart() {
       </CardHeader>
       <CardContent>
         <div className="h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={chartData}
-              layout="vertical"
-              margin={{ top: 8, right: 16, left: 8, bottom: 0 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" tickLine={false} axisLine={false} fontSize={12} />
-              <YAxis
-                type="category"
-                dataKey="name"
-                tickLine={false}
-                axisLine={false}
-                fontSize={12}
-                width={90}
-              />
-              <Tooltip />
-              <Bar dataKey="quantity" fill="var(--chart-2)" radius={[0, 2, 2, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {mounted ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={chartData}
+                layout="vertical"
+                margin={{ top: 8, right: 16, left: 8, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" tickLine={false} axisLine={false} fontSize={12} />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={12}
+                  width={90}
+                />
+                <Tooltip />
+                <Bar dataKey="quantity" fill="var(--chart-2)" radius={[0, 2, 2, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-full w-full bg-muted/10 rounded-lg animate-pulse" />
+          )}
         </div>
       </CardContent>
     </Card>
