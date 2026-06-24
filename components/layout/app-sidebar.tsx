@@ -4,10 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { appInfo, navItems } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
+import { useManufacturing } from "@/context/manufacturing-context";
 
 export function AppSidebar() {
   const pathname = usePathname();
   const Icon = appInfo.icon;
+  const { user, settings } = useManufacturing();
 
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border bg-sidebar">
@@ -52,9 +54,12 @@ export function AppSidebar() {
       </nav>
 
       <div className="border-t border-sidebar-border p-4">
-        <p className="text-xs font-medium text-muted-foreground">Plant Status</p>
-        <p className="mt-1 text-sm text-sidebar-foreground">Operational</p>
-        <p className="text-xs text-muted-foreground">Shift A · 06:00 – 14:00</p>
+        <p className="text-xs font-semibold text-primary uppercase tracking-wider">{settings.plantName}</p>
+        <p className="mt-1 text-sm font-medium text-sidebar-foreground flex items-center gap-1.5">
+          <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+          Plant Operational
+        </p>
+        <p className="text-xs text-muted-foreground mt-0.5">{user.shift}</p>
       </div>
     </aside>
   );

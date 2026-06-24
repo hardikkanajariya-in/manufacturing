@@ -38,3 +38,20 @@ export interface ProductionRecord {
 }
 
 export type StockStatus = "Adequate" | "Low Stock" | "Critical";
+
+export interface UserProfile {
+  name: string;
+  role: string;
+  email: string;
+  employeeId: string;
+  shift: string;
+  phone: string;
+}
+
+export interface SystemSettings {
+  plantName: string;
+  targetDailyOutput: Record<string, number>;
+  lowStockThreshold: number;
+  enableEmailAlerts: boolean;
+  enableSmsAlerts: boolean;
+}

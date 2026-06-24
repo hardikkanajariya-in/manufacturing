@@ -20,6 +20,8 @@ import type {
   Product,
   ProductionRecord,
   RawMaterial,
+  UserProfile,
+  SystemSettings,
 } from "@/lib/types";
 
 interface ManufacturingContextValue {
@@ -37,6 +39,13 @@ interface ManufacturingContextValue {
     quantity: number,
     productionDate: string
   ) => ProductionRecord | null;
+  isAuthenticated: boolean;
+  user: UserProfile;
+  settings: SystemSettings;
+  login: (email: string, password: string) => boolean;
+  logout: () => void;
+  updateUser: (profile: Partial<UserProfile>) => void;
+  updateSettings: (settings: Partial<SystemSettings>) => void;
 }
 
 const ManufacturingContext = createContext<ManufacturingContextValue | null>(
@@ -59,12 +68,69 @@ function calculateConsumption(
   });
 }
 
+const defaultUser: UserProfile = {
+  name: "Rajesh Sharma",
+  role: "Plant Manager",
+  email: "rajesh.sharma@cementpro.com",
+  employeeId: "CP-4902",
+  shift: "Shift A (06:00 – 14:00)",
+  phone: "+91 98765 43210",
+};
+
+const defaultSettings: SystemSettings = {
+  plantName: "CementPro Factory - Unit 4",
+  targetDailyOutput: {
+    "Paver Blocks": 5000,
+    "Kerb Stones": 2000,
+    "RCC Pipes": 150,
+  },
+  lowStockThreshold: 1000,
+  enableEmailAlerts: true,
+  enableSmsAlerts: false,
+};
+
 export function ManufacturingProvider({ children }: { children: ReactNode }) {
   const [materials, setMaterials] = useState<RawMaterial[]>(initialMaterials);
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [productionRecords, setProductionRecords] = useState<ProductionRecord[]>(
     initialProductionRecords
   );
+
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("mes_auth") === "true";
+    }
+    return false;
+  });
+
+  const [user, setUser] = useState<UserProfile>(defaultUser);
+  const [settings, setSettings] = useState<SystemSettings>(defaultSettings);
+
+  const login = useCallback((email: string, password: string): boolean => {
+    if (email.toLowerCase().endsWith("@cementpro.com") && password === "password") {
+      setIsAuthenticated(true);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("mes_auth", "true");
+      }
+      return true;
+    }
+    return false;
+  }, []);
+
+  const logout = useCallback(() => {
+    setIsAuthenticated(false);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("mes_auth");
+    }
+  }, []);
+
+  const updateUser = useCallback((profile: Partial<UserProfile>) => {
+    setUser((prev) => ({ ...prev, ...profile }));
+  }, []);
+
+  const updateSettings = useCallback((newSettings: Partial<SystemSettings>) => {
+    setSettings((prev) => ({ ...prev, ...newSettings }));
+  }, []);
 
   const addMaterial = useCallback((material: Omit<RawMaterial, "id">) => {
     setMaterials((prev) => [...prev, { ...material, id: generateId("mat") }]);
@@ -171,6 +237,13 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
       updateProductFormula,
       deleteProduct,
       submitProduction,
+      isAuthenticated,
+      user,
+      settings,
+      login,
+      logout,
+      updateUser,
+      updateSettings,
     }),
     [
       materials,
@@ -183,6 +256,13 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
       updateProductFormula,
       deleteProduct,
       submitProduction,
+      isAuthenticated,
+      user,
+      settings,
+      login,
+      logout,
+      updateUser,
+      updateSettings,
     ]
   );
 

@@ -78,7 +78,7 @@ export function ConsumptionReport() {
         <CardContent>
           <div className="h-72 w-full">
             {mounted ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={11} />

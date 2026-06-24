@@ -48,7 +48,7 @@ export function MaterialConsumptionChart() {
       <CardContent>
         <div className="h-72 w-full">
           {mounted ? (
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart
                 data={chartData}
                 layout="vertical"
