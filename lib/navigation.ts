@@ -20,7 +20,7 @@ export interface NavItem {
 
 export const navItems: NavItem[] = [
   { title: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["Manager", "Admin"] },
-  { title: "Raw Materials", href: "/raw-materials", icon: Boxes, roles: ["Manager", "Admin"] },
+  { title: "Inventory", href: "/raw-materials", icon: Boxes, roles: ["Manager", "Admin"] },
   { title: "Products", href: "/products", icon: Package, roles: ["Manager", "Admin"] },
   { title: "Production", href: "/production", icon: ClipboardList, roles: ["Manager", "Operator", "Admin"] },
   { title: "Sales", href: "/sales", icon: ShoppingBag, roles: ["Manager", "Admin"] },

@@ -17,6 +17,7 @@ import {
   initialProducts,
   initialRestocks,
   initialSales,
+  initialSuppliers,
   initialUnits,
   initialWorkOrders,
 } from "@/lib/mock-data";
@@ -32,6 +33,8 @@ import type {
   RawMaterial,
   RestockRecord,
   SaleRecord,
+  StockMovement,
+  Supplier,
   SystemSettings,
   UserProfile,
   UserRole,
@@ -53,8 +56,10 @@ interface ManufacturingContextValue {
   products: Product[];
   productionRecords: ProductionRecord[];
   restocks: RestockRecord[];
+  suppliers: Supplier[];
   workOrders: WorkOrder[];
   sales: SaleRecord[];
+  stockMovements: StockMovement[];
   addMaterial: (material: Omit<RawMaterial, "id" | "unitId">) => void;
   updateMaterial: (id: string, material: Omit<RawMaterial, "id" | "unitId">) => void;
   deleteMaterial: (id: string) => void;
@@ -63,6 +68,9 @@ interface ManufacturingContextValue {
   updateProductPrice: (productId: string, sellingPrice: number) => void;
   deleteProduct: (id: string) => void;
   addRestock: (restock: Omit<RestockRecord, "id" | "createdAt" | "unitId">) => void;
+  addSupplier: (supplier: Omit<Supplier, "id" | "unitId">) => void;
+  updateSupplier: (id: string, supplier: Omit<Supplier, "id" | "unitId">) => void;
+  deleteSupplier: (id: string) => void;
   addWorkOrder: (workOrder: Omit<WorkOrder, "id" | "woNumber" | "createdAt" | "unitId">) => void;
   updateWorkOrderStatus: (id: string, status: WorkOrderStatus) => void;
   updateWorkOrder: (id: string, fields: Partial<WorkOrder>) => void;
@@ -157,8 +165,10 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [productionRecords, setProductionRecords] = useState<ProductionRecord[]>(initialProductionRecords);
   const [restocks, setRestocks] = useState<RestockRecord[]>(initialRestocks);
+  const [suppliers, setSuppliers] = useState<Supplier[]>(initialSuppliers);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>(initialWorkOrders);
   const [sales, setSales] = useState<SaleRecord[]>(initialSales);
+  const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<UserProfile>(defaultUser);
   const [settings, setSettings] = useState<SystemSettings>(defaultSettings);
@@ -197,6 +207,10 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
     () => restocks.filter((item) => item.unitId === activeUnitId),
     [restocks, activeUnitId]
   );
+  const scopedSuppliers = useMemo(
+    () => suppliers.filter((item) => item.unitId === activeUnitId),
+    [suppliers, activeUnitId]
+  );
   const scopedWorkOrders = useMemo(
     () => workOrders.filter((item) => item.unitId === activeUnitId),
     [workOrders, activeUnitId]
@@ -204,6 +218,10 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
   const scopedSales = useMemo(
     () => sales.filter((item) => item.unitId === activeUnitId),
     [sales, activeUnitId]
+  );
+  const scopedStockMovements = useMemo(
+    () => stockMovements.filter((item) => item.unitId === activeUnitId),
+    [stockMovements, activeUnitId]
   );
   const scopedEmployees = useMemo(
     () => employees.filter((item) => item.unitId === activeUnitId),
@@ -283,6 +301,21 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
     setSettings((prev) => ({ ...prev, ...newSettings }));
   }, []);
 
+  const appendStockMovements = useCallback(
+    (entries: Omit<StockMovement, "id" | "createdAt">[]) => {
+      if (entries.length === 0) return;
+      setStockMovements((prev) => [
+        ...entries.map((entry) => ({
+          ...entry,
+          id: generateId("mov"),
+          createdAt: new Date().toISOString(),
+        })),
+        ...prev,
+      ]);
+    },
+    []
+  );
+
   const addMaterial = useCallback(
     (material: Omit<RawMaterial, "id" | "unitId">) => {
       setMaterials((prev) => [...prev, { ...material, id: generateId("mat"), unitId: activeUnitId }]);
@@ -330,6 +363,9 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
 
   const addRestock = useCallback(
     (restock: Omit<RestockRecord, "id" | "createdAt" | "unitId">) => {
+      const material = materials.find((m) => m.id === restock.materialId);
+      const balanceAfter = (material?.availableStock ?? 0) + restock.quantity;
+
       const newRecord: RestockRecord = {
         ...restock,
         unitId: activeUnitId,
@@ -338,23 +374,65 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
       };
       setRestocks((prev) => [newRecord, ...prev]);
       setMaterials((prev) =>
-        prev.map((material) => {
-          if (material.id !== restock.materialId) return material;
-          const totalExistingValue = material.availableStock * material.unitCost;
+        prev.map((mat) => {
+          if (mat.id !== restock.materialId) return mat;
+          const totalExistingValue = mat.availableStock * mat.unitCost;
           const totalNewValue = restock.quantity * restock.unitCost;
-          const totalNewStock = material.availableStock + restock.quantity;
+          const totalNewStock = mat.availableStock + restock.quantity;
           const avgCost =
             totalNewStock > 0 ? (totalExistingValue + totalNewValue) / totalNewStock : restock.unitCost;
           return {
-            ...material,
+            ...mat,
             availableStock: totalNewStock,
             unitCost: Math.round(avgCost * 100) / 100,
           };
         })
       );
+
+      appendStockMovements([
+        {
+          unitId: activeUnitId,
+          inventoryKind: "raw",
+          itemId: restock.materialId,
+          itemName: restock.materialName,
+          quantity: restock.quantity,
+          unit: restock.unit,
+          direction: "in",
+          reason: "purchase",
+          referenceId: newRecord.id,
+          referenceLabel: restock.invoiceNumber
+            ? `Purchase ${restock.invoiceNumber}`
+            : `Purchase from ${restock.supplier}`,
+          balanceAfter,
+          date: restock.date,
+        },
+      ]);
+    },
+    [activeUnitId, materials, appendStockMovements]
+  );
+
+  const addSupplier = useCallback(
+    (supplier: Omit<Supplier, "id" | "unitId">) => {
+      setSuppliers((prev) => [
+        ...prev,
+        { ...supplier, id: generateId("sup"), unitId: activeUnitId },
+      ]);
     },
     [activeUnitId]
   );
+
+  const updateSupplier = useCallback(
+    (id: string, supplier: Omit<Supplier, "id" | "unitId">) => {
+      setSuppliers((prev) =>
+        prev.map((item) => (item.id === id ? { ...supplier, id, unitId: item.unitId } : item))
+      );
+    },
+    []
+  );
+
+  const deleteSupplier = useCallback((id: string) => {
+    setSuppliers((prev) => prev.filter((item) => item.id !== id));
+  }, []);
 
   const addWorkOrder = useCallback(
     (wo: Omit<WorkOrder, "id" | "woNumber" | "createdAt" | "unitId">) => {
@@ -433,16 +511,56 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
         })
       );
 
+      const finishedBalanceAfter = product.finishedStock + quantity;
+
       setProducts((prev) =>
         prev.map((item) =>
-          item.id === product.id ? { ...item, finishedStock: item.finishedStock + quantity } : item
+          item.id === product.id ? { ...item, finishedStock: finishedBalanceAfter } : item
         )
       );
+
+      const movementDate = productionDate;
+      const rawMovements: Omit<StockMovement, "id" | "createdAt">[] = consumption.map((item) => {
+        const material = unitMaterials.find((m) => m.id === item.materialId);
+        const balanceAfter = (material?.availableStock ?? 0) - item.quantity;
+        return {
+          unitId: activeUnitId,
+          inventoryKind: "raw" as const,
+          itemId: item.materialId,
+          itemName: item.materialName,
+          quantity: item.quantity,
+          unit: item.unit,
+          direction: "out" as const,
+          reason: "production_consume" as const,
+          referenceId: record.id,
+          referenceLabel: `Production run — ${product.name}`,
+          balanceAfter,
+          date: movementDate,
+        };
+      });
+
+      appendStockMovements([
+        ...rawMovements,
+        {
+          unitId: activeUnitId,
+          inventoryKind: "finished",
+          itemId: product.id,
+          itemName: product.name,
+          quantity,
+          unit: "units",
+          direction: "in",
+          reason: "production_yield",
+          referenceId: record.id,
+          referenceLabel: `Production run — ${quantity} units passed`,
+          balanceAfter: finishedBalanceAfter,
+          date: movementDate,
+        },
+      ]);
 
       setProductionRecords((prev) => [record, ...prev]);
       return record;
     },
-    [activeUnitId, materials, products]
+    [activeUnitId, materials, products, appendStockMovements]
   );
 
   const recordSale = useCallback(
@@ -463,15 +581,37 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
         createdAt: new Date().toISOString(),
       };
 
+      const finishedBalanceAfter = product.finishedStock - sale.quantity;
+
       setProducts((prev) =>
         prev.map((item) =>
-          item.id === product.id ? { ...item, finishedStock: item.finishedStock - sale.quantity } : item
+          item.id === product.id ? { ...item, finishedStock: finishedBalanceAfter } : item
         )
       );
+
+      appendStockMovements([
+        {
+          unitId: activeUnitId,
+          inventoryKind: "finished",
+          itemId: product.id,
+          itemName: product.name,
+          quantity: sale.quantity,
+          unit: "units",
+          direction: "out",
+          reason: "sale",
+          referenceId: record.id,
+          referenceLabel: sale.invoiceNumber
+            ? `Sale ${sale.invoiceNumber} — ${sale.customerName}`
+            : `Sale to ${sale.customerName}`,
+          balanceAfter: finishedBalanceAfter,
+          date: sale.saleDate,
+        },
+      ]);
+
       setSales((prev) => [record, ...prev]);
       return record;
     },
-    [activeUnitId, products]
+    [activeUnitId, products, appendStockMovements]
   );
 
   const value = useMemo(
@@ -489,8 +629,10 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
       products: scopedProducts,
       productionRecords: scopedProductionRecords,
       restocks: scopedRestocks,
+      suppliers: scopedSuppliers,
       workOrders: scopedWorkOrders,
       sales: scopedSales,
+      stockMovements: scopedStockMovements,
       addMaterial,
       updateMaterial,
       deleteMaterial,
@@ -499,6 +641,9 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
       updateProductPrice,
       deleteProduct,
       addRestock,
+      addSupplier,
+      updateSupplier,
+      deleteSupplier,
       addWorkOrder,
       updateWorkOrderStatus,
       updateWorkOrder,
@@ -527,8 +672,10 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
       scopedProducts,
       scopedProductionRecords,
       scopedRestocks,
+      scopedSuppliers,
       scopedWorkOrders,
       scopedSales,
+      scopedStockMovements,
       addMaterial,
       updateMaterial,
       deleteMaterial,
@@ -537,6 +684,9 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
       updateProductPrice,
       deleteProduct,
       addRestock,
+      addSupplier,
+      updateSupplier,
+      deleteSupplier,
       addWorkOrder,
       updateWorkOrderStatus,
       updateWorkOrder,

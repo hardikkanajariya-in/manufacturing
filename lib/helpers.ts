@@ -21,6 +21,20 @@ export function formatNumber(value: number, decimals = 0): string {
   });
 }
 
+export function formatCurrency(value: number, decimals = 0): string {
+  return `₹${formatNumber(value, decimals)}`;
+}
+
+export function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export function getTodayString(): string {
   return new Date().toISOString().split("T")[0];
 }
@@ -31,6 +45,15 @@ export function isSameMonth(dateStr: string, reference = new Date()): boolean {
     date.getFullYear() === reference.getFullYear() &&
     date.getMonth() === reference.getMonth()
   );
+}
+
+export function getSupplierRate(
+  supplier: { materialRates: { materialId: string; unitCost: number }[] } | undefined,
+  materialId: string,
+  fallback: number
+): number {
+  const rate = supplier?.materialRates.find((item) => item.materialId === materialId);
+  return rate?.unitCost ?? fallback;
 }
 
 export function isToday(dateStr: string): boolean {

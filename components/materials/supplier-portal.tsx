@@ -1,18 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
   Truck,
   Plus,
   Trash2,
-  Receipt,
-  CheckCircle2,
-  AlertTriangle,
-  Building2,
   FileText,
+  Pencil,
+  CheckCircle2,
 } from "lucide-react";
 import { useManufacturing } from "@/context/manufacturing-context";
+import { SupplierDialog } from "@/components/materials/supplier-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,22 +32,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatNumber, getTodayString } from "@/lib/helpers";
+import { formatNumber, getSupplierRate, getTodayString } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
-import type { RestockRecord } from "@/lib/types";
-
-interface SupplierRate {
-  materialId: string;
-  unitCost: number;
-}
-
-interface Supplier {
-  id: string;
-  name: string;
-  contact: string;
-  paymentTerms: string;
-  materialRates: SupplierRate[];
-}
+import type { RestockRecord, Supplier } from "@/lib/types";
 
 interface PurchaseLineItem {
   key: string;
@@ -57,44 +43,6 @@ interface PurchaseLineItem {
   unitCost: string;
 }
 
-const SUPPLIERS: Supplier[] = [
-  {
-    id: "sup-ultratech",
-    name: "Ultratech Cement Ltd",
-    contact: "procurement@ultratechcement.com",
-    paymentTerms: "Net 30",
-    materialRates: [{ materialId: "mat-cement", unitCost: 12.0 }],
-  },
-  {
-    id: "sup-narmada",
-    name: "Narmada Sands Ltd",
-    contact: "sales@narmadasands.co.in",
-    paymentTerms: "Net 30",
-    materialRates: [{ materialId: "mat-sand", unitCost: 2.5 }],
-  },
-  {
-    id: "sup-rajasthan",
-    name: "Rajasthan Crushers",
-    contact: "supply@rajasthancrushers.com",
-    paymentTerms: "Net 15",
-    materialRates: [{ materialId: "mat-stone-dust", unitCost: 1.8 }],
-  },
-  {
-    id: "sup-ntpc",
-    name: "NTPC Ash Division",
-    contact: "flyash.sales@ntpc.co.in",
-    paymentTerms: "Net 30",
-    materialRates: [{ materialId: "mat-fly-ash", unitCost: 3.5 }],
-  },
-  {
-    id: "sup-water",
-    name: "Municipal Water Board",
-    contact: "support@waterboard.gov.in",
-    paymentTerms: "Net 15",
-    materialRates: [{ materialId: "mat-water", unitCost: 0.15 }],
-  },
-];
-
 function createLineItem(materialId = "", unitCost = ""): PurchaseLineItem {
   return {
     key: `line-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -102,11 +50,6 @@ function createLineItem(materialId = "", unitCost = ""): PurchaseLineItem {
     quantity: "",
     unitCost,
   };
-}
-
-function getSupplierRate(supplier: Supplier | undefined, materialId: string, fallback: number) {
-  const rate = supplier?.materialRates.find((item) => item.materialId === materialId);
-  return rate?.unitCost ?? fallback;
 }
 
 function groupPurchaseBills(restocks: RestockRecord[]) {
@@ -131,21 +74,26 @@ function groupPurchaseBills(restocks: RestockRecord[]) {
 }
 
 export function SupplierPortal() {
-  const { materials, restocks, addRestock } = useManufacturing();
+  const { materials, restocks, suppliers, addRestock, deleteSupplier } = useManufacturing();
 
-  const [selectedSupplierId, setSelectedSupplierId] = useState(SUPPLIERS[0]?.id ?? "");
+  const activeSuppliers = useMemo(() => suppliers.filter((s) => s.isActive), [suppliers]);
+
+  const [selectedSupplierId, setSelectedSupplierId] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [purchaseDate, setPurchaseDate] = useState(getTodayString());
   const [lineItems, setLineItems] = useState<PurchaseLineItem[]>([createLineItem()]);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  const selectedSupplier = SUPPLIERS.find((supplier) => supplier.id === selectedSupplierId);
+  useEffect(() => {
+    if (!activeSuppliers.some((s) => s.id === selectedSupplierId)) {
+      setSelectedSupplierId(activeSuppliers[0]?.id ?? "");
+    }
+  }, [activeSuppliers, selectedSupplierId]);
 
-  const lowStockCount = useMemo(
-    () => materials.filter((material) => material.availableStock <= material.minimumStock).length,
-    [materials]
-  );
+  const selectedSupplier = suppliers.find((supplier) => supplier.id === selectedSupplierId);
 
   const recentBills = useMemo(() => groupPurchaseBills(restocks).slice(0, 8), [restocks]);
 
@@ -162,7 +110,7 @@ export function SupplierPortal() {
   const handleSupplierChange = (supplierId: string | null) => {
     if (!supplierId) return;
     setSelectedSupplierId(supplierId);
-    const supplier = SUPPLIERS.find((item) => item.id === supplierId);
+    const supplier = suppliers.find((item) => item.id === supplierId);
     setLineItems((prev) =>
       prev.map((line) => {
         if (!line.materialId) return line;
@@ -265,86 +213,78 @@ export function SupplierPortal() {
     setTimeout(() => setSubmitSuccess(false), 2500);
   };
 
+  const openAddSupplier = () => {
+    setEditingSupplier(null);
+    setDialogOpen(true);
+  };
+
+  const openEditSupplier = (supplier: Supplier) => {
+    setEditingSupplier(supplier);
+    setDialogOpen(true);
+  };
+
+  const handleDeleteSupplier = (supplier: Supplier) => {
+    if (
+      !window.confirm(
+        `Remove "${supplier.name}" from the supplier directory? Past purchase records will keep this name.`
+      )
+    ) {
+      return;
+    }
+    deleteSupplier(supplier.id);
+    if (selectedSupplierId === supplier.id) {
+      setSelectedSupplierId("");
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="bg-white border-slate-200 shadow-sm">
-          <CardContent className="pt-4 pb-4 flex items-center justify-between">
-            <div>
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-                Registered Suppliers
-              </span>
-              <span className="text-2xl font-black text-slate-800 mt-1 block">{SUPPLIERS.length}</span>
-              <p className="text-[10px] text-slate-500 mt-1">Active vendor contracts</p>
-            </div>
-            <div className="size-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600">
-              <Building2 className="size-5" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className={cn("shadow-sm", lowStockCount > 0 ? "bg-amber-50 border-amber-200" : "bg-emerald-50 border-emerald-200")}>
-          <CardContent className="pt-4 pb-4 flex items-center justify-between">
-            <div>
-              <span className={cn("text-[10px] font-extrabold uppercase tracking-wider block", lowStockCount > 0 ? "text-amber-600" : "text-emerald-600")}>
-                Low Stock Materials
-              </span>
-              <span className={cn("text-2xl font-black mt-1 block", lowStockCount > 0 ? "text-amber-700" : "text-emerald-700")}>
-                {lowStockCount}
-              </span>
-              <p className={cn("text-[10px] mt-1", lowStockCount > 0 ? "text-amber-600" : "text-emerald-600")}>
-                At or below minimum stock level
-              </p>
-            </div>
-            <div className={cn("size-10 rounded-lg flex items-center justify-center", lowStockCount > 0 ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600")}>
-              {lowStockCount > 0 ? <AlertTriangle className="size-5" /> : <CheckCircle2 className="size-5" />}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-900 text-white border-slate-800 shadow-sm">
-          <CardContent className="pt-4 pb-4 flex items-center justify-between">
-            <div>
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-                Purchase Bills Logged
-              </span>
-              <span className="text-2xl font-black mt-1 block">{groupPurchaseBills(restocks).length}</span>
-              <p className="text-[10px] text-slate-400 mt-1">Billed restock entries on record</p>
-            </div>
-            <div className="size-10 bg-slate-800 rounded-lg flex items-center justify-center text-sky-400">
-              <Receipt className="size-5" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       <div className="grid gap-6 xl:grid-cols-5">
         <Card className="xl:col-span-2 border-slate-200 bg-white shadow-xs">
-          <CardHeader className="py-4 border-b border-slate-100">
+          <CardHeader className="py-4 border-b border-slate-100 flex flex-row items-center justify-between gap-3">
             <CardTitle className="text-sm font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
               <Truck className="size-4 text-slate-500" />
               Supplier Directory
             </CardTitle>
+            <Button
+              type="button"
+              size="sm"
+              onClick={openAddSupplier}
+              className="text-[10px] font-bold uppercase tracking-wider h-8"
+            >
+              <Plus className="size-3.5" />
+              Add supplier
+            </Button>
           </CardHeader>
           <CardContent className="p-0">
+            {suppliers.length === 0 ? (
+              <div className="py-10 text-center text-sm text-slate-400">
+                No suppliers yet.{" "}
+                <button type="button" onClick={openAddSupplier} className="text-sky-600 underline">
+                  Add your first supplier
+                </button>
+              </div>
+            ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase text-[10px]">
                     <th className="py-3 pl-4">Supplier</th>
                     <th className="py-3">Contact</th>
-                    <th className="py-3 pr-4 text-right">Terms</th>
+                    <th className="py-3">Terms</th>
+                    <th className="py-3 pr-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {SUPPLIERS.map((supplier) => (
+                  {suppliers.map((supplier) => (
                     <tr
                       key={supplier.id}
                       className={cn(
                         "hover:bg-slate-50/40 cursor-pointer",
-                        selectedSupplierId === supplier.id && "bg-sky-50/60"
+                        selectedSupplierId === supplier.id && "bg-sky-50/60",
+                        !supplier.isActive && "opacity-60"
                       )}
-                      onClick={() => handleSupplierChange(supplier.id)}
+                      onClick={() => supplier.isActive && handleSupplierChange(supplier.id)}
                     >
                       <td className="py-3.5 pl-4">
                         <span className="font-bold text-slate-700 block">{supplier.name}</span>
@@ -352,20 +292,44 @@ export function SupplierPortal() {
                           {supplier.materialRates
                             .map((rate) => materials.find((m) => m.id === rate.materialId)?.name)
                             .filter(Boolean)
-                            .join(", ")}
+                            .join(", ") || "No rates set"}
                         </span>
+                        {!supplier.isActive && (
+                          <Badge variant="outline" className="mt-1 text-[9px]">Inactive</Badge>
+                        )}
                       </td>
                       <td className="py-3.5 text-slate-500">{supplier.contact}</td>
-                      <td className="py-3.5 pr-4 text-right">
+                      <td className="py-3.5">
                         <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-wider bg-slate-50">
                           {supplier.paymentTerms}
                         </Badge>
+                      </td>
+                      <td className="py-3.5 pr-4 text-right">
+                        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={() => openEditSupplier(supplier)}
+                            className="p-1.5 text-slate-400 hover:text-sky-600 transition-colors"
+                            aria-label={`Edit ${supplier.name}`}
+                          >
+                            <Pencil className="size-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSupplier(supplier)}
+                            className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"
+                            aria-label={`Delete ${supplier.name}`}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            )}
           </CardContent>
         </Card>
 
@@ -378,17 +342,17 @@ export function SupplierPortal() {
           </CardHeader>
           <CardContent className="pt-4">
             <form onSubmit={handleSubmitPurchase} className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-1.5">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="space-y-1.5 min-w-0">
                   <Label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
                     Supplier
                   </Label>
                   <Select value={selectedSupplierId} onValueChange={handleSupplierChange}>
-                    <SelectTrigger className="bg-slate-50 border-slate-200 text-xs h-10">
+                    <SelectTrigger className="w-full bg-slate-50 border-slate-200 text-xs h-10">
                       <SelectValue placeholder="Select supplier" />
                     </SelectTrigger>
-                    <SelectContent className="bg-white border-slate-200">
-                      {SUPPLIERS.map((supplier) => (
+                    <SelectContent className="bg-white border-slate-200" align="start">
+                      {activeSuppliers.map((supplier) => (
                         <SelectItem key={supplier.id} value={supplier.id}>
                           {supplier.name}
                         </SelectItem>
@@ -442,15 +406,15 @@ export function SupplierPortal() {
                       const lineTotal = qty * cost;
                       return (
                         <TableRow key={line.key} className="border-b border-slate-100">
-                          <TableCell className="py-2 pl-3">
+                          <TableCell className="py-2 pl-3 min-w-0">
                             <Select
                               value={line.materialId}
                               onValueChange={(value) => value && handleMaterialChange(line.key, value)}
                             >
-                              <SelectTrigger className="bg-white border-slate-200 text-xs h-9">
+                              <SelectTrigger className="w-full bg-white border-slate-200 text-xs h-9">
                                 <SelectValue placeholder="Select material" />
                               </SelectTrigger>
-                              <SelectContent className="bg-white border-slate-200">
+                              <SelectContent className="bg-white border-slate-200" align="start">
                                 {materials.map((material) => (
                                   <SelectItem key={material.id} value={material.id}>
                                     {material.name} ({material.unit})
@@ -586,6 +550,8 @@ export function SupplierPortal() {
           )}
         </CardContent>
       </Card>
+
+      <SupplierDialog open={dialogOpen} onOpenChange={setDialogOpen} supplier={editingSupplier} />
     </div>
   );
 }

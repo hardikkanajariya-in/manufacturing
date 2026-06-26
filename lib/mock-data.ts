@@ -6,6 +6,7 @@ import type {
   RawMaterial,
   RestockRecord,
   SaleRecord,
+  Supplier,
   WorkOrder,
 } from "@/lib/types";
 
@@ -81,6 +82,54 @@ export const initialMaterials: RawMaterial[] = [
   { id: "mat-stone-dust", unitId: DEFAULT_UNIT_ID, name: "Stone Dust", unit: "Kg", availableStock: 5400, minimumStock: 1500, unitCost: 1.8 },
   { id: "mat-fly-ash", unitId: DEFAULT_UNIT_ID, name: "Fly Ash", unit: "Kg", availableStock: 680, minimumStock: 800, unitCost: 3.5 },
   { id: "mat-water", unitId: DEFAULT_UNIT_ID, name: "Water", unit: "Litre", availableStock: 9200, minimumStock: 2000, unitCost: 0.15 },
+];
+
+export const initialSuppliers: Supplier[] = [
+  {
+    id: "sup-ultratech",
+    unitId: DEFAULT_UNIT_ID,
+    name: "Ultratech Cement Ltd",
+    contact: "procurement@ultratechcement.com",
+    paymentTerms: "Net 30",
+    isActive: true,
+    materialRates: [{ materialId: "mat-cement", unitCost: 12.0 }],
+  },
+  {
+    id: "sup-narmada",
+    unitId: DEFAULT_UNIT_ID,
+    name: "Narmada Sands Ltd",
+    contact: "sales@narmadasands.co.in",
+    paymentTerms: "Net 30",
+    isActive: true,
+    materialRates: [{ materialId: "mat-sand", unitCost: 2.5 }],
+  },
+  {
+    id: "sup-rajasthan",
+    unitId: DEFAULT_UNIT_ID,
+    name: "Rajasthan Crushers",
+    contact: "supply@rajasthancrushers.com",
+    paymentTerms: "Net 15",
+    isActive: true,
+    materialRates: [{ materialId: "mat-stone-dust", unitCost: 1.8 }],
+  },
+  {
+    id: "sup-ntpc",
+    unitId: DEFAULT_UNIT_ID,
+    name: "NTPC Ash Division",
+    contact: "flyash.sales@ntpc.co.in",
+    paymentTerms: "Net 30",
+    isActive: true,
+    materialRates: [{ materialId: "mat-fly-ash", unitCost: 3.5 }],
+  },
+  {
+    id: "sup-water",
+    unitId: DEFAULT_UNIT_ID,
+    name: "Municipal Water Board",
+    contact: "support@waterboard.gov.in",
+    paymentTerms: "Net 15",
+    isActive: true,
+    materialRates: [{ materialId: "mat-water", unitCost: 0.15 }],
+  },
 ];
 
 export const initialProducts: Product[] = [

@@ -108,6 +108,21 @@ export interface RestockRecord {
   createdAt: string;
 }
 
+export interface SupplierMaterialRate {
+  materialId: string;
+  unitCost: number;
+}
+
+export interface Supplier {
+  id: string;
+  unitId: string;
+  name: string;
+  contact: string;
+  paymentTerms: string;
+  materialRates: SupplierMaterialRate[];
+  isActive: boolean;
+}
+
 export type WorkOrderStatus = "Draft" | "Scheduled" | "In Progress" | "Completed" | "Cancelled";
 
 export interface WorkOrder {
@@ -136,5 +151,32 @@ export interface SaleRecord {
   paymentStatus: PaymentStatus;
   saleDate: string;
   notes?: string;
+  createdAt: string;
+}
+
+export type InventoryKind = "raw" | "finished";
+
+export type MovementDirection = "in" | "out";
+
+export type MovementReason =
+  | "purchase"
+  | "production_consume"
+  | "production_yield"
+  | "sale";
+
+export interface StockMovement {
+  id: string;
+  unitId: string;
+  inventoryKind: InventoryKind;
+  itemId: string;
+  itemName: string;
+  quantity: number;
+  unit: string;
+  direction: MovementDirection;
+  reason: MovementReason;
+  referenceId?: string;
+  referenceLabel?: string;
+  balanceAfter: number;
+  date: string;
   createdAt: string;
 }

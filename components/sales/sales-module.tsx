@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Plus, ShoppingBag, Package, AlertCircle } from "lucide-react";
+import { Plus, ShoppingBag, AlertCircle, Warehouse, ArrowRight } from "lucide-react";
 import { useManufacturing } from "@/context/manufacturing-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,7 @@ export function SalesModule() {
   const [saleDate, setSaleDate] = useState(getTodayString());
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [lastSaleMessage, setLastSaleMessage] = useState<string | null>(null);
 
   const selectedProduct = products.find((p) => p.id === productId);
 
@@ -66,6 +68,7 @@ export function SalesModule() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setLastSaleMessage(null);
     const qty = Number(quantity);
     const price = Number(unitPrice);
     if (!productId || !selectedProduct || qty <= 0 || price < 0 || !customerName.trim()) return;
@@ -90,6 +93,9 @@ export function SalesModule() {
     setCustomerName("");
     setInvoiceNumber("");
     setNotes("");
+    setLastSaleMessage(
+      `${qty} units of ${selectedProduct.name} sold — warehouse stock updated and logged as outflow.`
+    );
   };
 
   return (
@@ -121,13 +127,20 @@ export function SalesModule() {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        <Card className="lg:col-span-2">
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
           <CardHeader className="pb-3">
             <CardTitle className="section-title flex items-center gap-2">
               <ShoppingBag className="size-4 text-primary" />
               Record sale
             </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Stock is deducted from the{" "}
+              <Link href="/raw-materials?tab=finished" className="text-primary underline-offset-2 hover:underline">
+                finished goods warehouse
+              </Link>
+              . Each sale is logged in the warehouse outflow ledger.
+            </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -202,6 +215,13 @@ export function SalesModule() {
                 </div>
               )}
 
+              {lastSaleMessage && (
+                <div className="flex items-start gap-2 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-800">
+                  <Warehouse className="size-4 shrink-0" />
+                  {lastSaleMessage}
+                </div>
+              )}
+
               <Button type="submit" className="w-full">
                 <Plus className="size-4" />
                 Record sale
@@ -210,38 +230,32 @@ export function SalesModule() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-3">
+        <Card>
           <CardHeader className="pb-3">
             <CardTitle className="section-title flex items-center gap-2">
-              <Package className="size-4 text-muted-foreground" />
-              Finished goods inventory
+              <Warehouse className="size-4 text-muted-foreground" />
+              Warehouse stock check
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
-            <div className="data-table-wrap border-0 rounded-none">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead className="text-right">Finished stock</TableHead>
-                    <TableHead className="text-right">Unit price</TableHead>
-                    <TableHead className="text-right pr-4">Stock value</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {products.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell className="text-right font-mono">{formatNumber(product.finishedStock, 0)}</TableCell>
-                      <TableCell className="text-right font-mono">₹{formatNumber(product.sellingPrice, 2)}</TableCell>
-                      <TableCell className="text-right font-mono pr-4">
-                        ₹{formatNumber(product.finishedStock * product.sellingPrice, 0)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Select a product above to see available units. Full stock levels and the inflow/outflow
+              ledger live under Inventory → Finished warehouse.
+            </p>
+            {selectedProduct && (
+              <div className="rounded-lg border border-border bg-muted/40 p-4">
+                <p className="text-sm font-medium">{selectedProduct.name}</p>
+                <p className="mt-1 font-mono text-2xl font-semibold">
+                  {selectedProduct.finishedStock.toLocaleString()} units available
+                </p>
+              </div>
+            )}
+            <Link
+              href="/raw-materials?tab=finished"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Open finished warehouse <ArrowRight className="ml-1 h-3.5 w-3.5" />
+            </Link>
           </CardContent>
         </Card>
       </div>

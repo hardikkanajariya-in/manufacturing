@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Plus, ShoppingCart, Calendar, Truck, Layers, DollarSign } from "lucide-react";
+import { Plus, ShoppingCart, Calendar, Layers, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -31,48 +31,51 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useManufacturing } from "@/context/manufacturing-context";
-import { formatNumber, getTodayString } from "@/lib/helpers";
+import { formatNumber, getSupplierRate, getTodayString } from "@/lib/helpers";
 
 export function RestockLedger() {
-  const { restocks, materials, addRestock } = useManufacturing();
+  const { restocks, materials, suppliers, addRestock } = useManufacturing();
+  const activeSuppliers = suppliers.filter((s) => s.isActive);
   const [dialogOpen, setDialogOpen] = useState(false);
   
   // Dialog state variables
   const [materialId, setMaterialId] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unitCost, setUnitCost] = useState("");
-  const [supplier, setSupplier] = useState("");
+  const [supplierId, setSupplierId] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [restockDate, setRestockDate] = useState(getTodayString());
 
   const selectedMaterial = materials.find((m) => m.id === materialId);
+  const selectedSupplier = activeSuppliers.find((s) => s.id === supplierId);
 
-  // Auto-populate unit cost when material changes
+  // Auto-populate unit cost when material or supplier changes
   useEffect(() => {
     if (selectedMaterial) {
-      setUnitCost(selectedMaterial.unitCost.toString());
+      const rate = getSupplierRate(selectedSupplier, materialId, selectedMaterial.unitCost);
+      setUnitCost(rate.toString());
     } else {
       setUnitCost("");
     }
-  }, [materialId, selectedMaterial]);
+  }, [materialId, selectedMaterial, selectedSupplier]);
 
   // Set default material when dialog opens
   useEffect(() => {
     if (dialogOpen && materials.length > 0) {
       setMaterialId(materials[0].id);
       setQuantity("");
-      setSupplier("");
+      setSupplierId(activeSuppliers[0]?.id ?? "");
       setInvoiceNumber("");
       setRestockDate(getTodayString());
     }
-  }, [dialogOpen, materials]);
+  }, [dialogOpen, materials, activeSuppliers]);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     const qty = Number(quantity);
     const cost = Number(unitCost);
 
-    if (!materialId || !selectedMaterial || qty <= 0 || cost < 0 || !supplier.trim()) {
+    if (!materialId || !selectedMaterial || qty <= 0 || cost < 0 || !selectedSupplier) {
       return;
     }
 
@@ -83,7 +86,7 @@ export function RestockLedger() {
       unit: selectedMaterial.unit,
       unitCost: cost,
       totalCost: qty * cost,
-      supplier: supplier.trim(),
+      supplier: selectedSupplier.name,
       invoiceNumber: invoiceNumber.trim() || undefined,
       date: restockDate,
     });
@@ -159,7 +162,7 @@ export function RestockLedger() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-white border border-slate-200">
+        <DialogContent className="sm:max-w-lg bg-white border border-slate-200">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
               <ShoppingCart className="size-5 text-sky-600" />
@@ -171,7 +174,7 @@ export function RestockLedger() {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="text-xs font-bold text-slate-700">Select Raw Material</Label>
               <Select
                 value={materialId}
@@ -180,7 +183,7 @@ export function RestockLedger() {
                 <SelectTrigger className="w-full bg-slate-50 border-slate-200 text-xs h-10">
                   <SelectValue placeholder="Select material" />
                 </SelectTrigger>
-                <SelectContent className="bg-white border-slate-200">
+                <SelectContent className="bg-white border-slate-200" align="start">
                   {materials.map((m) => (
                     <SelectItem key={m.id} value={m.id}>
                       {m.name} ({m.unit})
@@ -226,23 +229,27 @@ export function RestockLedger() {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="supplier-name" className="text-xs font-bold text-slate-700">Supplier / Vendor</Label>
-                <div className="relative">
-                  <span className="absolute left-2.5 top-3 text-slate-400">
-                    <Truck className="size-3.5" />
-                  </span>
-                  <Input
-                    id="supplier-name"
-                    type="text"
-                    value={supplier}
-                    onChange={(e) => setSupplier(e.target.value)}
-                    placeholder="e.g. Ultratech Cement"
-                    className="pl-8 bg-slate-50 border-slate-200 focus:bg-white text-xs h-10"
-                    required
-                  />
-                </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-1.5 min-w-0">
+                <Label className="text-xs font-bold text-slate-700">Supplier / Vendor</Label>
+                <Select value={supplierId} onValueChange={(v) => v && setSupplierId(v)}>
+                  <SelectTrigger className="w-full bg-slate-50 border-slate-200 text-xs h-10">
+                    <SelectValue placeholder="Select supplier" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-slate-200" align="start">
+                    {activeSuppliers.length === 0 ? (
+                      <SelectItem value="__none" disabled>
+                        No suppliers — add one under Purchases
+                      </SelectItem>
+                    ) : (
+                      activeSuppliers.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="invoice-number" className="text-xs font-bold text-slate-700">Invoice / Bill No.</Label>

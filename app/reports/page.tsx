@@ -4,17 +4,15 @@ import * as React from "react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useManufacturing } from "@/context/manufacturing-context";
-import { ConsumptionReport } from "@/components/reports/consumption-report";
 import { ProductionReport } from "@/components/reports/production-report";
 import { QualityReport } from "@/components/reports/quality-report";
-import { StockReport } from "@/components/reports/stock-report";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { cn } from "@/lib/utils";
 
 export default function ReportsPage() {
-  const { user, productionRecords, restocks } = useManufacturing();
+  const { user, productionRecords } = useManufacturing();
   const router = useRouter();
-  const [activeTab, setActiveTab] = React.useState<"production" | "consumption" | "quality" | "stock">("production");
+  const [activeTab, setActiveTab] = React.useState<"production" | "quality">("production");
 
   // Timeline Filter State
   const [filterMode, setFilterMode] = React.useState<"monthly" | "quarterly" | "yearly" | "custom">("monthly");
@@ -87,28 +85,6 @@ export default function ReportsPage() {
     });
   }, [productionRecords, getDateRange]);
 
-  const filteredRestocks = React.useMemo(() => {
-    const { start, end } = getDateRange;
-    return restocks.filter((record) => {
-      const date = new Date(record.date);
-      if (isNaN(date.getTime())) return true;
-      
-      if (start) {
-        const s = new Date(start);
-        s.setHours(0, 0, 0, 0);
-        date.setHours(0, 0, 0, 0);
-        if (date < s) return false;
-      }
-      if (end) {
-        const e = new Date(end);
-        e.setHours(23, 59, 59, 999);
-        date.setHours(0, 0, 0, 0);
-        if (date > e) return false;
-      }
-      return true;
-    });
-  }, [restocks, getDateRange]);
-
   if (user.role === "Operator") {
     return null;
   }
@@ -116,7 +92,7 @@ export default function ReportsPage() {
   return (
     <DashboardShell
       title="Reports"
-      description="Production, consumption, and inventory analytics"
+      description="Production log and quality — inventory ledgers are under Inventory"
     >
       <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -224,18 +200,7 @@ export default function ReportsPage() {
                 : "border-transparent text-slate-400 hover:text-slate-600"
             )}
           >
-            Production & Finance
-          </button>
-          <button
-            onClick={() => setActiveTab("consumption")}
-            className={cn(
-              "pb-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 cursor-pointer whitespace-nowrap",
-              activeTab === "consumption"
-                ? "border-sky-600 text-sky-600 font-extrabold"
-                : "border-transparent text-slate-400 hover:text-slate-600"
-            )}
-          >
-            Material Consumption
+            Production log
           </button>
           <button
             onClick={() => setActiveTab("quality")}
@@ -246,43 +211,18 @@ export default function ReportsPage() {
                 : "border-transparent text-slate-400 hover:text-slate-600"
             )}
           >
-            Quality Control
-          </button>
-          <button
-            onClick={() => setActiveTab("stock")}
-            className={cn(
-              "pb-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 cursor-pointer whitespace-nowrap",
-              activeTab === "stock"
-                ? "border-sky-600 text-sky-600 font-extrabold"
-                : "border-transparent text-slate-400 hover:text-slate-600"
-            )}
-          >
-            Stock Report
+            Quality
           </button>
         </div>
 
-        {/* Tab Contents */}
         {activeTab === "production" && (
           <div className="animate-fadeIn">
             <ProductionReport filteredRecords={filteredProductionRecords} />
           </div>
         )}
-        {activeTab === "consumption" && (
-          <div className="animate-fadeIn">
-            <ConsumptionReport filteredRecords={filteredProductionRecords} />
-          </div>
-        )}
         {activeTab === "quality" && (
           <div className="animate-fadeIn">
             <QualityReport filteredRecords={filteredProductionRecords} />
-          </div>
-        )}
-        {activeTab === "stock" && (
-          <div className="animate-fadeIn">
-            <StockReport
-              filteredProductionRecords={filteredProductionRecords}
-              filteredRestocks={filteredRestocks}
-            />
           </div>
         )}
       </div>
