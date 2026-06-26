@@ -12,7 +12,10 @@ export function MobileNav() {
   const items = getNavItemsForRole(user.role);
 
   return (
-    <nav className="flex gap-1 overflow-x-auto border-b border-border bg-card px-3 py-2 lg:hidden scrollbar-none">
+    <nav
+      className="flex gap-1 overflow-x-auto border-b border-border bg-card px-2 py-2 lg:hidden scrollbar-none"
+      aria-label="Main navigation"
+    >
       {items.map((item) => {
         const isActive =
           item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
@@ -22,15 +25,18 @@ export function MobileNav() {
           <Link
             key={item.href}
             href={item.href}
+            title={item.title}
             className={cn(
-              "flex shrink-0 items-center gap-1.5 rounded-[var(--radius-button)] px-2.5 py-1.5 text-[11px] font-medium brand-transition sm:px-3 sm:text-xs",
+              "flex min-w-[3.25rem] shrink-0 flex-col items-center gap-0.5 rounded-[var(--radius-button)] px-2 py-1.5 text-[10px] font-medium brand-transition sm:min-w-0 sm:flex-row sm:gap-1.5 sm:px-2.5 sm:text-xs",
               isActive
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
-            <NavIcon className="size-3.5 shrink-0 stroke-[2]" />
-            <span className="whitespace-nowrap">{item.title}</span>
+            <NavIcon className="size-4 shrink-0 stroke-[2]" />
+            <span className="max-w-[4.5rem] truncate sm:max-w-none sm:whitespace-nowrap">
+              {item.title}
+            </span>
           </Link>
         );
       })}

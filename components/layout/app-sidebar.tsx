@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { appInfo, getNavItemsForRole } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { useManufacturing } from "@/context/manufacturing-context";
+import { PwaInstallButton } from "@/components/pwa/pwa-install-button";
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -54,6 +55,10 @@ export function AppSidebar() {
           );
         })}
       </nav>
+
+      <div className="border-t border-sidebar-border p-3 space-y-1">
+        <PwaInstallButton variant="sidebar" />
+      </div>
 
       <div className="border-t border-sidebar-border p-4">
         <p className="text-xs font-semibold text-sidebar-icon">{activeUnit.code}</p>

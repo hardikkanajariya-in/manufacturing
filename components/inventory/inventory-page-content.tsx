@@ -4,15 +4,17 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useManufacturing } from "@/context/manufacturing-context";
 import { MaterialsTable } from "@/components/materials/materials-table";
-import { RestockLedger } from "@/components/materials/restock-ledger";
 import { StockCardLedger } from "@/components/materials/stock-card-ledger";
-import { SupplierPortal } from "@/components/materials/supplier-portal";
+import { PurchaseBillsPanel } from "@/components/materials/purchase-bills-panel";
+import { SupplierDirectory } from "@/components/materials/supplier-directory";
+import { RestockLedger } from "@/components/materials/restock-ledger";
 import { FinishedGoodsWarehouse } from "@/components/inventory/finished-goods-warehouse";
 import { RawMaterialLedger } from "@/components/inventory/raw-material-ledger";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { PageTabs } from "@/components/layout/page-tabs";
 
 type InventoryTab = "raw" | "raw-ledger" | "finished" | "purchases";
+type PurchaseSubTab = "bills" | "suppliers" | "lines";
 
 export function InventoryPageContent() {
   const { user } = useManufacturing();
@@ -26,6 +28,7 @@ export function InventoryPageContent() {
       : "raw";
 
   const [activeTab, setActiveTab] = useState<InventoryTab>(initialTab);
+  const [purchaseSubTab, setPurchaseSubTab] = useState<PurchaseSubTab>("bills");
   const [showLedger, setShowLedger] = useState(false);
   const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
 
@@ -93,9 +96,19 @@ export function InventoryPageContent() {
         ) : activeTab === "finished" ? (
           <FinishedGoodsWarehouse />
         ) : (
-          <div className="space-y-6">
-            <SupplierPortal />
-            <RestockLedger />
+          <div className="space-y-4">
+            <PageTabs
+              tabs={[
+                { id: "bills", label: "Purchase bills" },
+                { id: "suppliers", label: "Suppliers" },
+                { id: "lines", label: "Line items" },
+              ]}
+              activeTab={purchaseSubTab}
+              onChange={(id) => setPurchaseSubTab(id as PurchaseSubTab)}
+            />
+            {purchaseSubTab === "bills" && <PurchaseBillsPanel />}
+            {purchaseSubTab === "suppliers" && <SupplierDirectory />}
+            {purchaseSubTab === "lines" && <RestockLedger />}
           </div>
         )}
       </div>

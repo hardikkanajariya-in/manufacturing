@@ -11,43 +11,41 @@ import {
   YAxis,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useManufacturing } from "@/context/manufacturing-context";
-import { isSameMonth } from "@/lib/helpers";
+import type { ProductionRecord } from "@/lib/types";
 
-export function MaterialConsumptionChart() {
-  const { productionRecords } = useManufacturing();
+interface MaterialConsumptionChartProps {
+  records: ProductionRecord[];
+}
+
+export function MaterialConsumptionChart({ records }: MaterialConsumptionChartProps) {
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
 
-  const consumptionMap = new Map<string, number>();
-
-  productionRecords
-    .filter((record) => isSameMonth(record.productionDate))
-    .forEach((record) => {
+  const chartData = React.useMemo(() => {
+    const consumptionMap = new Map<string, number>();
+    records.forEach((record) => {
       record.consumption.forEach((item) => {
         const current = consumptionMap.get(item.materialName) ?? 0;
         consumptionMap.set(item.materialName, current + item.quantity);
       });
     });
-
-  const chartData = Array.from(consumptionMap.entries())
-    .map(([name, quantity]) => ({ name, quantity: Math.round(quantity) }))
-    .sort((a, b) => b.quantity - a.quantity);
+    return Array.from(consumptionMap.entries())
+      .map(([name, quantity]) => ({ name, quantity: Math.round(quantity) }))
+      .sort((a, b) => b.quantity - a.quantity);
+  }, [records]);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Material Consumption</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Monthly raw material usage (Kg / Litre)
-        </p>
+        <CardTitle className="text-base">Material consumption</CardTitle>
+        <p className="text-sm text-muted-foreground">Raw material usage in selected period</p>
       </CardHeader>
       <CardContent>
-        <div className="h-72 w-full">
-          {mounted ? (
+        <div className="h-64 w-full sm:h-72">
+          {mounted && chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart
                 data={chartData}
@@ -61,15 +59,17 @@ export function MaterialConsumptionChart() {
                   dataKey="name"
                   tickLine={false}
                   axisLine={false}
-                  fontSize={12}
-                  width={90}
+                  fontSize={11}
+                  width={88}
                 />
                 <Tooltip />
                 <Bar dataKey="quantity" fill="var(--chart-2)" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-full w-full bg-muted/10 rounded-lg animate-pulse" />
+            <div className="flex h-full items-center justify-center rounded-lg bg-muted/10 text-sm text-muted-foreground">
+              No consumption data in this period.
+            </div>
           )}
         </div>
       </CardContent>

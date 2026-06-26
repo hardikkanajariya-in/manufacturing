@@ -3,8 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useManufacturing } from "@/context/manufacturing-context";
-import { ProductionChart } from "@/components/dashboard/production-chart";
-import { MaterialConsumptionChart } from "@/components/dashboard/material-consumption-chart";
+import { DashboardContent } from "@/components/dashboard/dashboard-content";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 
 export default function DashboardPage() {
@@ -22,11 +21,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <DashboardShell title="Dashboard" description="Production and material usage trends">
-      <div className="grid gap-6 xl:grid-cols-2">
-        <ProductionChart />
-        <MaterialConsumptionChart />
-      </div>
+    <DashboardShell title="Dashboard" description="Production, sales, and inventory trends for the selected period">
+      <DashboardContent />
     </DashboardShell>
   );
 }
