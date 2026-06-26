@@ -12,14 +12,8 @@ import {
   YAxis,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { useDataTable } from "@/hooks/use-data-table";
 import { useManufacturing } from "@/context/manufacturing-context";
 import { formatNumber } from "@/lib/helpers";
 import type { ProductionRecord } from "@/lib/types";
@@ -63,6 +57,81 @@ export function ProductionReport({ filteredRecords }: ProductionReportProps) {
   const overallMargin = financialTotals.revenue > 0
     ? (financialTotals.profit / financialTotals.revenue) * 100
     : 0;
+
+  const ledgerTable = useDataTable<ProductionRecord>({
+    data: productionRecords,
+    pageSize: 10,
+    initialSort: { columnId: "date", direction: "desc" },
+    searchFn: (row, q) => row.productName.toLowerCase().includes(q),
+    getSortValue: (row, col) => {
+      if (col === "date") return new Date(row.productionDate);
+      if (col === "product") return row.productName;
+      if (col === "qty") return row.quantity;
+      if (col === "scrap") return row.scrapQuantity;
+      if (col === "cost") return row.materialCost;
+      if (col === "revenue") return row.revenue;
+      return row.profit;
+    },
+  });
+
+  const ledgerColumns: DataTableColumn<ProductionRecord>[] = [
+    {
+      id: "date",
+      header: "Date",
+      sortable: true,
+      cell: (r) => format(new Date(r.productionDate), "dd MMM yyyy"),
+    },
+    {
+      id: "product",
+      header: "Product",
+      sortable: true,
+      cell: (r) => <span className="font-semibold">{r.productName}</span>,
+    },
+    {
+      id: "qty",
+      header: "Passed yield",
+      sortable: true,
+      className: "text-right tabular-nums text-success",
+      headerClassName: "text-right",
+      cell: (r) => formatNumber(r.quantity),
+    },
+    {
+      id: "scrap",
+      header: "Scrap",
+      sortable: true,
+      className: "text-right tabular-nums text-destructive",
+      headerClassName: "text-right",
+      cell: (r) => formatNumber(r.scrapQuantity || 0),
+    },
+    {
+      id: "cost",
+      header: "Material cost",
+      sortable: true,
+      className: "text-right tabular-nums text-muted-foreground",
+      headerClassName: "text-right",
+      cell: (r) => `₹${formatNumber(r.materialCost || 0, 2)}`,
+    },
+    {
+      id: "revenue",
+      header: "Revenue",
+      sortable: true,
+      className: "text-right tabular-nums",
+      headerClassName: "text-right",
+      cell: (r) => `₹${formatNumber(r.revenue || 0, 2)}`,
+    },
+    {
+      id: "profit",
+      header: "Net profit",
+      sortable: true,
+      className: "text-right tabular-nums font-semibold",
+      headerClassName: "text-right",
+      cell: (r) => (
+        <span className={r.profit >= 0 ? "text-success" : "text-destructive"}>
+          ₹{formatNumber(r.profit || 0, 2)}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -147,47 +216,16 @@ export function ProductionReport({ filteredRecords }: ProductionReportProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Shop Floor Production Ledger</CardTitle>
+          <CardTitle className="text-base">Shop floor production ledger</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead className="text-right">Passed Yield</TableHead>
-                <TableHead className="text-right">Scrap Qty</TableHead>
-                <TableHead className="text-right">Material Cost</TableHead>
-                <TableHead className="text-right">Est. Revenue</TableHead>
-                <TableHead className="text-right">Net Profit</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {productionRecords.map((record) => (
-                <TableRow key={record.id}>
-                  <TableCell>
-                    {format(new Date(record.productionDate), "dd MMM yyyy")}
-                  </TableCell>
-                  <TableCell className="font-semibold">{record.productName}</TableCell>
-                  <TableCell className="text-right tabular-nums text-emerald-600 dark:text-emerald-400">
-                    {formatNumber(record.quantity)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-destructive">
-                    {formatNumber(record.scrapQuantity || 0)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    ₹{formatNumber(record.materialCost || 0, 2)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    ₹{formatNumber(record.revenue || 0, 2)}
-                  </TableCell>
-                  <TableCell className={`text-right tabular-nums font-semibold ${record.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
-                    ₹{formatNumber(record.profit || 0, 2)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable
+            table={ledgerTable}
+            columns={ledgerColumns}
+            getRowKey={(r) => r.id}
+            searchPlaceholder="Search by product…"
+            emptyMessage="No production records in this period."
+          />
         </CardContent>
       </Card>
     </div>

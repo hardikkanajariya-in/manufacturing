@@ -1,14 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, type DataTableColumn, type DataTableFilter } from "@/components/ui/data-table";
+import { useDataTable } from "@/hooks/use-data-table";
 import type { InventoryKind, StockMovement } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/helpers";
 
@@ -31,64 +26,141 @@ export function StockMovementTable({
   inventoryKind,
   emptyMessage = "No stock movements recorded yet.",
 }: StockMovementTableProps) {
-  const filtered = inventoryKind
-    ? movements.filter((m) => m.inventoryKind === inventoryKind)
-    : movements;
+  const filteredSource = useMemo(
+    () =>
+      inventoryKind
+        ? movements.filter((m) => m.inventoryKind === inventoryKind)
+        : movements,
+    [movements, inventoryKind]
+  );
 
-  if (filtered.length === 0) {
-    return (
-      <p className="py-8 text-center text-sm text-muted-foreground">{emptyMessage}</p>
-    );
-  }
+  const table = useDataTable<StockMovement>({
+    data: filteredSource,
+    pageSize: 10,
+    initialSort: { columnId: "date", direction: "desc" },
+    searchFn: (row, q) =>
+      [
+        row.itemName,
+        row.referenceLabel ?? "",
+        REASON_LABELS[row.reason],
+        row.direction,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(q),
+    filterFn: (row, filters) => {
+      if (filters.direction && filters.direction !== "all" && row.direction !== filters.direction) {
+        return false;
+      }
+      if (filters.reason && filters.reason !== "all" && row.reason !== filters.reason) {
+        return false;
+      }
+      return true;
+    },
+    getSortValue: (row, col) => {
+      if (col === "date") return new Date(row.date);
+      if (col === "item") return row.itemName;
+      if (col === "qty") return row.quantity;
+      if (col === "balance") return row.balanceAfter;
+      return row.referenceLabel ?? "";
+    },
+  });
+
+  const columns: DataTableColumn<StockMovement>[] = [
+    {
+      id: "date",
+      header: "Date",
+      sortable: true,
+      cell: (m) => (
+        <span className="whitespace-nowrap text-sm">{formatDate(m.date)}</span>
+      ),
+    },
+    {
+      id: "item",
+      header: "Item",
+      sortable: true,
+      cell: (m) => <span className="font-medium">{m.itemName}</span>,
+    },
+    {
+      id: "type",
+      header: "Type",
+      cell: (m) => (
+        <Badge
+          variant={m.direction === "in" ? "default" : "secondary"}
+          className={
+            m.direction === "in"
+              ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
+              : "bg-amber-100 text-amber-800 hover:bg-amber-100"
+          }
+        >
+          {m.direction === "in" ? "In" : "Out"} — {REASON_LABELS[m.reason]}
+        </Badge>
+      ),
+    },
+    {
+      id: "qty",
+      header: "Qty",
+      sortable: true,
+      className: "text-right font-mono text-sm",
+      headerClassName: "text-right",
+      cell: (m) => (
+        <>
+          {m.direction === "out" ? "−" : "+"}
+          {m.quantity.toLocaleString()} {m.unit}
+        </>
+      ),
+    },
+    {
+      id: "balance",
+      header: "Balance after",
+      sortable: true,
+      className: "text-right font-mono text-sm",
+      headerClassName: "text-right",
+      cell: (m) => (
+        <>
+          {m.balanceAfter.toLocaleString()} {m.unit}
+        </>
+      ),
+    },
+    {
+      id: "reference",
+      header: "Reference",
+      sortable: true,
+      cell: (m) => (
+        <span className="max-w-[200px] truncate text-sm text-muted-foreground block">
+          {m.referenceLabel ?? "—"}
+        </span>
+      ),
+    },
+  ];
+
+  const filters: DataTableFilter[] = [
+    {
+      id: "direction",
+      label: "Direction",
+      allLabel: "All directions",
+      options: [
+        { value: "in", label: "Inflow" },
+        { value: "out", label: "Outflow" },
+      ],
+    },
+    {
+      id: "reason",
+      label: "Reason",
+      allLabel: "All reasons",
+      options: Object.entries(REASON_LABELS).map(([value, label]) => ({ value, label })),
+    },
+  ];
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Item</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead className="text-right">Qty</TableHead>
-            <TableHead className="text-right">Balance after</TableHead>
-            <TableHead>Reference</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.map((movement) => (
-            <TableRow key={movement.id}>
-              <TableCell className="whitespace-nowrap text-sm">
-                {formatDate(movement.date)}
-              </TableCell>
-              <TableCell className="font-medium">{movement.itemName}</TableCell>
-              <TableCell>
-                <Badge
-                  variant={movement.direction === "in" ? "default" : "secondary"}
-                  className={
-                    movement.direction === "in"
-                      ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
-                      : "bg-amber-100 text-amber-800 hover:bg-amber-100"
-                  }
-                >
-                  {movement.direction === "in" ? "In" : "Out"} —{" "}
-                  {REASON_LABELS[movement.reason]}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-right font-mono text-sm">
-                {movement.direction === "out" ? "−" : "+"}
-                {movement.quantity.toLocaleString()} {movement.unit}
-              </TableCell>
-              <TableCell className="text-right font-mono text-sm">
-                {movement.balanceAfter.toLocaleString()} {movement.unit}
-              </TableCell>
-              <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
-                {movement.referenceLabel ?? "—"}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      table={table}
+      columns={columns}
+      getRowKey={(m) => m.id}
+      searchPlaceholder="Search movements…"
+      filters={filters}
+      emptyMessage={emptyMessage}
+    />
   );
 }
 

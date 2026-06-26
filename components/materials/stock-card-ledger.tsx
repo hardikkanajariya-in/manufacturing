@@ -2,17 +2,10 @@
 
 import * as React from "react";
 import { format } from "date-fns";
-import { ArrowLeft, ArrowDownLeft, ArrowUpRight, Layers } from "lucide-react";
+import { ArrowLeft, Layers } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { useDataTable } from "@/hooks/use-data-table";
 import { useManufacturing } from "@/context/manufacturing-context";
 import { formatNumber } from "@/lib/helpers";
 
@@ -21,7 +14,7 @@ interface StockCardLedgerProps {
   onBack?: () => void;
 }
 
-interface Transaction {
+interface LedgerRow {
   id: string;
   date: string;
   type: "Inflow" | "Outflow";
@@ -30,6 +23,7 @@ interface Transaction {
   unitCost: number;
   reference: string;
   timestamp: string;
+  balance: number;
 }
 
 export function StockCardLedger({ materialId, onBack }: StockCardLedgerProps) {
@@ -40,7 +34,7 @@ export function StockCardLedger({ materialId, onBack }: StockCardLedgerProps) {
   const ledgerData = React.useMemo(() => {
     if (!selectedMaterial) return [];
 
-    const txs: Transaction[] = [];
+    const txs: Omit<LedgerRow, "balance">[] = [];
 
     // 1. Collect Restock Inflows
     restocks
@@ -99,6 +93,100 @@ export function StockCardLedger({ materialId, onBack }: StockCardLedgerProps) {
     return ledger.reverse();
   }, [selectedMaterial, restocks, productionRecords]);
 
+  const ledgerTable = useDataTable<LedgerRow>({
+    data: ledgerData,
+    pageSize: 10,
+    initialSort: { columnId: "date", direction: "desc" },
+    searchFn: (row, q) =>
+      row.reference.toLowerCase().includes(q) ||
+      row.type.toLowerCase().includes(q),
+    filterFn: (row, filters) => {
+      if (filters.type && filters.type !== "all" && row.type !== filters.type) {
+        return false;
+      }
+      return true;
+    },
+    getSortValue: (row, col) => {
+      if (col === "date") return new Date(row.date);
+      if (col === "quantity") return row.quantity;
+      if (col === "balance") return row.balance;
+      return row.reference;
+    },
+  });
+
+  const ledgerColumns: DataTableColumn<LedgerRow>[] = [
+    {
+      id: "date",
+      header: "Date",
+      sortable: true,
+      cell: (item) => (
+        <span className="text-slate-500 font-medium font-mono text-[10px]">
+          {format(new Date(item.date), "dd MMM yy")}
+        </span>
+      ),
+    },
+    {
+      id: "quantity",
+      header: "Quantity",
+      sortable: true,
+      className: "text-right font-mono font-bold tabular-nums text-xs",
+      headerClassName: "text-right",
+      cell: (item) => {
+        const isInflow = item.type === "Inflow";
+        return (
+          <span className={isInflow ? "text-emerald-600" : "text-amber-600"}>
+            {isInflow ? "+" : "-"}
+            {formatNumber(item.quantity, 1)}
+          </span>
+        );
+      },
+    },
+    {
+      id: "balance",
+      header: "Balance",
+      sortable: true,
+      className: "text-right font-mono font-bold text-slate-800 tabular-nums text-xs",
+      headerClassName: "text-right",
+      cell: (item) => formatNumber(item.balance, 1),
+    },
+    {
+      id: "reference",
+      header: "Type / Ref",
+      sortable: true,
+      cell: (item) => {
+        const isInflow = item.type === "Inflow";
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span
+              className={`inline-self-start text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded-md border font-sans tracking-wider ${
+                isInflow
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                  : "bg-amber-50 text-amber-700 border-amber-100"
+              }`}
+            >
+              {isInflow ? "Inflow" : "Outflow"}
+            </span>
+            <span className="text-[10px] text-slate-400 truncate max-w-[140px]" title={item.reference}>
+              {item.reference}
+            </span>
+          </div>
+        );
+      },
+    },
+  ];
+
+  const ledgerFilters = [
+    {
+      id: "type",
+      label: "Type",
+      allLabel: "All types",
+      options: [
+        { value: "Inflow", label: "Inflow" },
+        { value: "Outflow", label: "Outflow" },
+      ],
+    },
+  ];
+
   if (!selectedMaterial) {
     return (
       <Card className="bg-slate-50/50 border-dashed border-2 border-slate-200 h-full flex flex-col justify-center items-center py-16 text-center shadow-xs rounded-2xl min-h-[350px]">
@@ -150,59 +238,14 @@ export function StockCardLedger({ materialId, onBack }: StockCardLedgerProps) {
             </div>
           </div>
 
-          {ledgerData.length === 0 ? (
-            <div className="text-center py-10 text-xs text-slate-400 border border-dashed rounded-xl">
-              No transactions recorded for this material.
-            </div>
-          ) : (
-            <div className="overflow-y-auto max-h-[320px] border border-slate-100 rounded-xl">
-              <Table>
-                <TableHeader className="bg-slate-50/75 sticky top-0 z-10">
-                  <TableRow className="border-b border-slate-150">
-                    <TableHead className="py-2.5 pl-3 text-[10px] font-bold text-slate-500">Date</TableHead>
-                    <TableHead className="py-2.5 text-[10px] font-bold text-slate-500 text-right">Quantity</TableHead>
-                    <TableHead className="py-2.5 text-[10px] font-bold text-slate-500 text-right">Balance</TableHead>
-                    <TableHead className="py-2.5 pr-3 text-[10px] font-bold text-slate-500">Type / Ref</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ledgerData.map((item) => {
-                    const isInflow = item.type === "Inflow";
-                    return (
-                      <TableRow key={item.id} className="hover:bg-slate-50/50 border-b border-slate-100 text-xs">
-                        <TableCell className="py-2.5 pl-3 text-slate-500 font-medium font-mono text-[10px]">
-                          {format(new Date(item.date), "dd MMM yy")}
-                        </TableCell>
-                        <TableCell className={`py-2.5 text-right font-mono font-bold tabular-nums text-xs ${isInflow ? "text-emerald-600" : "text-amber-600"}`}>
-                          <span className="inline-flex items-center gap-0.5">
-                            {isInflow ? "+" : "-"}
-                            {formatNumber(item.quantity, 1)}
-                          </span>
-                        </TableCell>
-                        <TableCell className="py-2.5 text-right font-mono font-bold text-slate-800 tabular-nums text-xs">
-                          {formatNumber(item.balance, 1)}
-                        </TableCell>
-                        <TableCell className="py-2.5 pr-3">
-                          <div className="flex flex-col gap-0.5">
-                            <span className={`inline-self-start text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded-md border font-sans tracking-wider ${
-                              isInflow 
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
-                                : "bg-amber-50 text-amber-700 border-amber-100"
-                            }`}>
-                              {isInflow ? "Inflow" : "Outflow"}
-                            </span>
-                            <span className="text-[10px] text-slate-400 truncate max-w-[100px]" title={item.reference}>
-                              {item.reference}
-                            </span>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          <DataTable
+            table={ledgerTable}
+            columns={ledgerColumns}
+            getRowKey={(item) => item.id}
+            searchPlaceholder="Search by reference…"
+            filters={ledgerFilters}
+            emptyMessage="No transactions recorded for this material."
+          />
         </CardContent>
       </div>
     </Card>

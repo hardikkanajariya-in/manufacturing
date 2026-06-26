@@ -17,17 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, type DataTableColumn, type DataTableFilter } from "@/components/ui/data-table";
+import { useDataTable } from "@/hooks/use-data-table";
 import { formatNumber, getTodayString } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
-import type { PaymentStatus } from "@/lib/types";
+import type { PaymentStatus, SaleRecord } from "@/lib/types";
 
 const paymentStyles: Record<PaymentStatus, string> = {
   Paid: "bg-success/10 text-success border-success/20",
@@ -57,6 +51,109 @@ export function SalesModule() {
     const pending = sales.filter((s) => s.paymentStatus !== "Paid").length;
     return { revenue, unitsSold, pending, count: sales.length };
   }, [sales]);
+
+  const salesTable = useDataTable<SaleRecord>({
+    data: sales,
+    pageSize: 10,
+    initialSort: { columnId: "date", direction: "desc" },
+    searchFn: (row, q) =>
+      [row.customerName, row.productName, row.invoiceNumber ?? "", row.paymentStatus]
+        .join(" ")
+        .toLowerCase()
+        .includes(q),
+    filterFn: (row, filters) => {
+      if (filters.payment && filters.payment !== "all" && row.paymentStatus !== filters.payment) {
+        return false;
+      }
+      if (filters.product && filters.product !== "all" && row.productId !== filters.product) {
+        return false;
+      }
+      return true;
+    },
+    getSortValue: (row, col) => {
+      if (col === "date") return new Date(row.saleDate);
+      if (col === "customer") return row.customerName;
+      if (col === "product") return row.productName;
+      if (col === "qty") return row.quantity;
+      if (col === "amount") return row.totalAmount;
+      return row.invoiceNumber ?? "";
+    },
+  });
+
+  const salesColumns: DataTableColumn<SaleRecord>[] = [
+    {
+      id: "date",
+      header: "Date",
+      sortable: true,
+      cell: (s) => (
+        <span className="text-muted-foreground">{format(new Date(s.saleDate), "dd MMM yyyy")}</span>
+      ),
+    },
+    {
+      id: "customer",
+      header: "Customer",
+      sortable: true,
+      cell: (s) => <span className="font-medium">{s.customerName}</span>,
+    },
+    {
+      id: "product",
+      header: "Product",
+      sortable: true,
+      cell: (s) => s.productName,
+    },
+    {
+      id: "qty",
+      header: "Qty",
+      sortable: true,
+      className: "text-right font-mono",
+      headerClassName: "text-right",
+      cell: (s) => s.quantity,
+    },
+    {
+      id: "amount",
+      header: "Amount",
+      sortable: true,
+      className: "text-right font-mono font-semibold",
+      headerClassName: "text-right",
+      cell: (s) => `₹${formatNumber(s.totalAmount, 2)}`,
+    },
+    {
+      id: "payment",
+      header: "Payment",
+      cell: (s) => (
+        <Badge variant="outline" className={cn("text-[10px] font-medium", paymentStyles[s.paymentStatus])}>
+          {s.paymentStatus}
+        </Badge>
+      ),
+    },
+    {
+      id: "invoice",
+      header: "Invoice",
+      sortable: true,
+      cell: (s) => (
+        <span className="font-mono text-xs text-muted-foreground">{s.invoiceNumber ?? "—"}</span>
+      ),
+    },
+  ];
+
+  const salesFilters: DataTableFilter[] = [
+    {
+      id: "payment",
+      label: "Payment",
+      allLabel: "All payments",
+      options: [
+        { value: "Paid", label: "Paid" },
+        { value: "Pending", label: "Pending" },
+        { value: "Partial", label: "Partial" },
+      ],
+    },
+    {
+      id: "product",
+      label: "Product",
+      allLabel: "All products",
+      options: products.map((p) => ({ value: p.id, label: p.name })),
+    },
+  ];
 
   const handleProductChange = (id: string | null) => {
     if (!id) return;
@@ -264,43 +361,15 @@ export function SalesModule() {
         <CardHeader className="pb-3">
           <CardTitle className="section-title">Sales ledger</CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
-          {sales.length === 0 ? (
-            <p className="p-6 text-sm text-muted-foreground text-center">No sales recorded for this unit.</p>
-          ) : (
-            <div className="data-table-wrap border-0 rounded-none">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead className="text-right">Qty</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Payment</TableHead>
-                    <TableHead className="pr-4">Invoice</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sales.map((sale) => (
-                    <TableRow key={sale.id}>
-                      <TableCell className="text-muted-foreground">{format(new Date(sale.saleDate), "dd MMM yyyy")}</TableCell>
-                      <TableCell className="font-medium">{sale.customerName}</TableCell>
-                      <TableCell>{sale.productName}</TableCell>
-                      <TableCell className="text-right font-mono">{sale.quantity}</TableCell>
-                      <TableCell className="text-right font-mono font-semibold">₹{formatNumber(sale.totalAmount, 2)}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={cn("text-[10px] font-medium", paymentStyles[sale.paymentStatus])}>
-                          {sale.paymentStatus}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground pr-4">{sale.invoiceNumber ?? "—"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+        <CardContent>
+          <DataTable
+            table={salesTable}
+            columns={salesColumns}
+            getRowKey={(s) => s.id}
+            searchPlaceholder="Search sales…"
+            filters={salesFilters}
+            emptyMessage="No sales recorded for this unit."
+          />
         </CardContent>
       </Card>
     </div>

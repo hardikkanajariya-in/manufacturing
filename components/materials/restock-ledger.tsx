@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
-import { Plus, ShoppingCart, Calendar, Layers, DollarSign } from "lucide-react";
+import { Plus, ShoppingCart, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -22,23 +22,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, type DataTableColumn, type DataTableFilter } from "@/components/ui/data-table";
+import { useDataTable } from "@/hooks/use-data-table";
 import { useManufacturing } from "@/context/manufacturing-context";
 import { formatNumber, getSupplierRate, getTodayString } from "@/lib/helpers";
+import type { RestockRecord } from "@/lib/types";
 
 export function RestockLedger() {
   const { restocks, materials, suppliers, addRestock } = useManufacturing();
   const activeSuppliers = suppliers.filter((s) => s.isActive);
   const [dialogOpen, setDialogOpen] = useState(false);
-  
-  // Dialog state variables
+
   const [materialId, setMaterialId] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unitCost, setUnitCost] = useState("");
@@ -49,7 +43,6 @@ export function RestockLedger() {
   const selectedMaterial = materials.find((m) => m.id === materialId);
   const selectedSupplier = activeSuppliers.find((s) => s.id === supplierId);
 
-  // Auto-populate unit cost when material or supplier changes
   useEffect(() => {
     if (selectedMaterial) {
       const rate = getSupplierRate(selectedSupplier, materialId, selectedMaterial.unitCost);
@@ -59,7 +52,6 @@ export function RestockLedger() {
     }
   }, [materialId, selectedMaterial, selectedSupplier]);
 
-  // Set default material when dialog opens
   useEffect(() => {
     if (dialogOpen && materials.length > 0) {
       setMaterialId(materials[0].id);
@@ -69,6 +61,95 @@ export function RestockLedger() {
       setRestockDate(getTodayString());
     }
   }, [dialogOpen, materials, activeSuppliers]);
+
+  const table = useDataTable<RestockRecord>({
+    data: restocks,
+    pageSize: 10,
+    initialSort: { columnId: "date", direction: "desc" },
+    searchFn: (row, q) =>
+      [row.materialName, row.supplier, row.invoiceNumber ?? ""].join(" ").toLowerCase().includes(q),
+    filterFn: (row, filters) => {
+      if (filters.material && filters.material !== "all" && row.materialId !== filters.material) {
+        return false;
+      }
+      return true;
+    },
+    getSortValue: (row, col) => {
+      if (col === "date") return new Date(row.date);
+      if (col === "material") return row.materialName;
+      if (col === "qty") return row.quantity;
+      if (col === "unitCost") return row.unitCost;
+      if (col === "total") return row.totalCost;
+      return row.supplier;
+    },
+  });
+
+  const columns: DataTableColumn<RestockRecord>[] = useMemo(
+    () => [
+      {
+        id: "date",
+        header: "Date",
+        sortable: true,
+        cell: (item) => format(new Date(item.date), "dd MMM yyyy"),
+      },
+      {
+        id: "material",
+        header: "Material",
+        sortable: true,
+        cell: (item) => <span className="font-medium">{item.materialName}</span>,
+      },
+      {
+        id: "qty",
+        header: "Quantity",
+        sortable: true,
+        className: "text-right font-mono",
+        headerClassName: "text-right",
+        cell: (item) => `${formatNumber(item.quantity, 1)} ${item.unit}`,
+      },
+      {
+        id: "unitCost",
+        header: "Unit cost",
+        sortable: true,
+        className: "text-right font-mono",
+        headerClassName: "text-right",
+        cell: (item) => `₹${formatNumber(item.unitCost, 2)}`,
+      },
+      {
+        id: "total",
+        header: "Total",
+        sortable: true,
+        className: "text-right font-mono font-semibold text-success",
+        headerClassName: "text-right",
+        cell: (item) => `₹${formatNumber(item.totalCost, 2)}`,
+      },
+      {
+        id: "invoice",
+        header: "Invoice",
+        cell: (item) => (
+          <span className="font-mono text-xs">{item.invoiceNumber ?? "—"}</span>
+        ),
+      },
+      {
+        id: "supplier",
+        header: "Supplier",
+        sortable: true,
+        cell: (item) => item.supplier,
+      },
+    ],
+    []
+  );
+
+  const filters: DataTableFilter[] = useMemo(
+    () => [
+      {
+        id: "material",
+        label: "Material",
+        allLabel: "All materials",
+        options: materials.map((m) => ({ value: m.id, label: m.name })),
+      },
+    ],
+    [materials]
+  );
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -96,94 +177,51 @@ export function RestockLedger() {
 
   return (
     <>
-      <Card className="bg-white border-slate-200 shadow-sm">
+      <Card className="border-border shadow-sm">
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
           <div>
-            <CardTitle className="text-base font-extrabold text-slate-800">Replenishment Ledger</CardTitle>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <CardTitle className="text-base font-semibold">Replenishment ledger</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">
               History of raw materials purchased and received
             </p>
           </div>
-          <Button variant="outline" onClick={() => setDialogOpen(true)} className="font-bold uppercase tracking-wider text-xs border-slate-200 hover:bg-slate-50 flex items-center gap-1.5 shadow-xs cursor-pointer">
+          <Button variant="outline" onClick={() => setDialogOpen(true)} size="sm">
             <Plus className="size-4" />
-            Log Restock
+            Log restock
           </Button>
         </CardHeader>
         <CardContent>
-          {restocks.length === 0 ? (
-            <div className="text-center py-10 text-sm text-slate-400 border border-dashed rounded-xl">
-              No restocking records logged.
-            </div>
-          ) : (
-            <div className="overflow-x-auto border border-slate-100 rounded-xl">
-              <Table>
-                <TableHeader className="bg-slate-50/75">
-                  <TableRow className="border-b border-slate-150">
-                    <TableHead className="font-bold text-xs text-slate-500 py-3 pl-4">Date</TableHead>
-                    <TableHead className="font-bold text-xs text-slate-500 py-3">Material</TableHead>
-                    <TableHead className="font-bold text-xs text-slate-500 py-3 text-right">Quantity</TableHead>
-                    <TableHead className="font-bold text-xs text-slate-500 py-3 text-right">Unit Cost</TableHead>
-                    <TableHead className="font-bold text-xs text-slate-500 py-3 text-right">Total Cost</TableHead>
-                    <TableHead className="font-bold text-xs text-slate-500 py-3">Invoice</TableHead>
-                    <TableHead className="font-bold text-xs text-slate-500 py-3 pr-4">Supplier</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {restocks.map((item) => (
-                    <TableRow key={item.id} className="hover:bg-slate-50/60 border-b border-slate-100">
-                      <TableCell className="text-slate-500 py-3.5 pl-4 font-medium text-xs">
-                        {format(new Date(item.date), "dd MMM yyyy")}
-                      </TableCell>
-                      <TableCell className="font-semibold text-slate-700 py-3.5 text-xs">
-                        {item.materialName}
-                      </TableCell>
-                      <TableCell className="text-right font-mono font-bold text-slate-800 py-3.5 text-xs tabular-nums">
-                        {formatNumber(item.quantity, 1)} {item.unit}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-slate-400 py-3.5 text-xs tabular-nums">
-                        ₹{formatNumber(item.unitCost, 2)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono font-bold text-emerald-600 py-3.5 text-xs tabular-nums">
-                        ₹{formatNumber(item.totalCost, 2)}
-                      </TableCell>
-                      <TableCell className="text-slate-500 py-3.5 text-xs font-mono">
-                        {item.invoiceNumber ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-slate-600 py-3.5 pr-4 text-xs">
-                        {item.supplier}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          <DataTable
+            table={table}
+            columns={columns}
+            getRowKey={(item) => item.id}
+            searchPlaceholder="Search restocks…"
+            filters={filters}
+            emptyMessage="No restocking records logged."
+          />
         </CardContent>
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg bg-white border border-slate-200">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <ShoppingCart className="size-5 text-sky-600" />
-              Log Material Restock
+            <DialogTitle className="flex items-center gap-2">
+              <ShoppingCart className="size-5 text-primary" />
+              Log material restock
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-400">
+            <DialogDescription>
               Record a raw material purchase order to update stock levels.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4 pt-2">
             <div className="space-y-1.5 min-w-0">
-              <Label className="text-xs font-bold text-slate-700">Select Raw Material</Label>
-              <Select
-                value={materialId}
-                onValueChange={(value) => value && setMaterialId(value)}
-              >
-                <SelectTrigger className="w-full bg-slate-50 border-slate-200 text-xs h-10">
+              <Label>Select raw material</Label>
+              <Select value={materialId} onValueChange={(value) => value && setMaterialId(value)}>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select material" />
                 </SelectTrigger>
-                <SelectContent className="bg-white border-slate-200" align="start">
+                <SelectContent align="start">
                   {materials.map((m) => (
                     <SelectItem key={m.id} value={m.id}>
                       {m.name} ({m.unit})
@@ -195,7 +233,7 @@ export function RestockLedger() {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="restock-quantity" className="text-xs font-bold text-slate-700">Quantity Received</Label>
+                <Label htmlFor="restock-quantity">Quantity received</Label>
                 <Input
                   id="restock-quantity"
                   type="number"
@@ -203,107 +241,76 @@ export function RestockLedger() {
                   step="0.1"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
-                  placeholder="e.g. 500"
-                  className="bg-slate-50 border-slate-200 focus:bg-white text-xs h-10"
                   required
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="restock-unit-cost" className="text-xs font-bold text-slate-700">
-                  Unit Cost (₹/{selectedMaterial?.unit ?? "Unit"})
+                <Label htmlFor="restock-unit-cost">
+                  Unit cost (₹/{selectedMaterial?.unit ?? "unit"})
                 </Label>
-                <div className="relative">
-                  <span className="absolute left-2.5 top-3 text-[10px] font-bold text-slate-400 font-mono">₹</span>
-                  <Input
-                    id="restock-unit-cost"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={unitCost}
-                    onChange={(e) => setUnitCost(e.target.value)}
-                    placeholder="e.g. 12.00"
-                    className="pl-5 bg-slate-50 border-slate-200 focus:bg-white text-xs h-10"
-                    required
-                  />
-                </div>
+                <Input
+                  id="restock-unit-cost"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={unitCost}
+                  onChange={(e) => setUnitCost(e.target.value)}
+                  required
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-1.5 min-w-0">
-                <Label className="text-xs font-bold text-slate-700">Supplier / Vendor</Label>
+                <Label>Supplier / vendor</Label>
                 <Select value={supplierId} onValueChange={(v) => v && setSupplierId(v)}>
-                  <SelectTrigger className="w-full bg-slate-50 border-slate-200 text-xs h-10">
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select supplier" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white border-slate-200" align="start">
-                    {activeSuppliers.length === 0 ? (
-                      <SelectItem value="__none" disabled>
-                        No suppliers — add one under Purchases
+                  <SelectContent align="start">
+                    {activeSuppliers.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
                       </SelectItem>
-                    ) : (
-                      activeSuppliers.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name}
-                        </SelectItem>
-                      ))
-                    )}
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="invoice-number" className="text-xs font-bold text-slate-700">Invoice / Bill No.</Label>
+                <Label htmlFor="invoice-number">Invoice / bill no.</Label>
                 <Input
                   id="invoice-number"
-                  type="text"
                   value={invoiceNumber}
                   onChange={(e) => setInvoiceNumber(e.target.value)}
-                  placeholder="e.g. INV-2026-1042"
-                  className="bg-slate-50 border-slate-200 focus:bg-white text-xs h-10"
+                  placeholder="INV-2026-1042"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="restock-date" className="text-xs font-bold text-slate-700">Date Received</Label>
-                <div className="relative">
-                  <span className="absolute left-2.5 top-3 text-slate-400">
-                    <Calendar className="size-3.5" />
-                  </span>
-                  <Input
-                    id="restock-date"
-                    type="date"
-                    value={restockDate}
-                    onChange={(e) => setRestockDate(e.target.value)}
-                    className="pl-8 bg-slate-50 border-slate-200 focus:bg-white text-xs h-10"
-                    required
-                  />
-                </div>
+                <Label htmlFor="restock-date">Date received</Label>
+                <Input
+                  id="restock-date"
+                  type="date"
+                  value={restockDate}
+                  onChange={(e) => setRestockDate(e.target.value)}
+                  required
+                />
               </div>
             </div>
 
             {selectedMaterial && quantity && unitCost ? (
-              <div className="rounded-xl bg-slate-50 p-4 text-xs flex justify-between items-center border border-slate-100 mt-2">
-                <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Estimated Invoice Total</span>
-                <span className="text-base font-black text-slate-800 tabular-nums">
+              <div className="rounded-lg bg-muted p-3 text-sm flex justify-between">
+                <span className="text-muted-foreground">Estimated total</span>
+                <span className="font-semibold font-mono">
                   ₹{formatNumber(Number(quantity) * Number(unitCost), 2)}
                 </span>
               </div>
             ) : null}
 
-            <DialogFooter className="pt-2">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setDialogOpen(false)}
-                className="text-xs font-bold uppercase tracking-wider h-10 border-slate-200 cursor-pointer"
-              >
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button 
-                type="submit"
-                className="text-xs font-bold uppercase tracking-wider h-10 cursor-pointer"
-              >
-                Log Restock
-              </Button>
+              <Button type="submit">Log restock</Button>
             </DialogFooter>
           </form>
         </DialogContent>

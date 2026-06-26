@@ -32,6 +32,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { useDataTable } from "@/hooks/use-data-table";
 import { formatNumber, getSupplierRate, getTodayString } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
 import type { RestockRecord, Supplier } from "@/lib/types";
@@ -73,6 +75,8 @@ function groupPurchaseBills(restocks: RestockRecord[]) {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
+type PurchaseBill = ReturnType<typeof groupPurchaseBills>[number];
+
 export function SupplierPortal() {
   const { materials, restocks, suppliers, addRestock, deleteSupplier } = useManufacturing();
 
@@ -95,7 +99,64 @@ export function SupplierPortal() {
 
   const selectedSupplier = suppliers.find((supplier) => supplier.id === selectedSupplierId);
 
-  const recentBills = useMemo(() => groupPurchaseBills(restocks).slice(0, 8), [restocks]);
+  const recentBills = useMemo(() => groupPurchaseBills(restocks), [restocks]);
+
+  const billsTable = useDataTable<PurchaseBill>({
+    data: recentBills,
+    pageSize: 10,
+    initialSort: { columnId: "date", direction: "desc" },
+    searchFn: (row, q) =>
+      [row.supplier, row.invoiceNumber, row.lines.map((l) => l.materialName).join(" ")]
+        .join(" ")
+        .toLowerCase()
+        .includes(q),
+    getSortValue: (row, col) => {
+      if (col === "date") return new Date(row.date);
+      if (col === "supplier") return row.supplier;
+      if (col === "total") return row.total;
+      return row.invoiceNumber;
+    },
+  });
+
+  const billColumns: DataTableColumn<PurchaseBill>[] = [
+    {
+      id: "date",
+      header: "Date",
+      sortable: true,
+      cell: (bill) => format(new Date(bill.date), "dd MMM yyyy"),
+    },
+    {
+      id: "invoice",
+      header: "Invoice no.",
+      sortable: true,
+      cell: (bill) => <span className="font-mono font-semibold">{bill.invoiceNumber}</span>,
+    },
+    {
+      id: "supplier",
+      header: "Supplier",
+      sortable: true,
+      cell: (bill) => bill.supplier,
+    },
+    {
+      id: "materials",
+      header: "Materials",
+      cell: (bill) => (
+        <span className="text-muted-foreground text-xs">
+          {bill.lines
+            .map((line) => `${line.materialName} (${formatNumber(line.quantity, 0)} ${line.unit})`)
+            .join(" · ")}
+        </span>
+      ),
+    },
+    {
+      id: "total",
+      header: "Bill total",
+      sortable: true,
+      className: "text-right font-mono font-semibold text-success",
+      headerClassName: "text-right",
+      cell: (bill) => `₹${formatNumber(bill.total, 2)}`,
+    },
+  ];
 
   const billTotal = useMemo(
     () =>
@@ -506,48 +567,17 @@ export function SupplierPortal() {
       <Card className="border-slate-200 bg-white shadow-xs">
         <CardHeader className="py-4 border-b border-slate-100 px-6">
           <CardTitle className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">
-            Recent Purchase Bills
+            Purchase bills
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
-          {recentBills.length === 0 ? (
-            <div className="text-center py-10 text-sm text-slate-400 border-t border-slate-100">
-              No purchase bills recorded yet.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase text-[10px]">
-                    <th className="py-3 pl-6">Date</th>
-                    <th className="py-3">Invoice No.</th>
-                    <th className="py-3">Supplier</th>
-                    <th className="py-3">Materials</th>
-                    <th className="py-3 pr-6 text-right">Bill Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {recentBills.map((bill) => (
-                    <tr key={`${bill.invoiceNumber}-${bill.supplier}-${bill.date}`} className="hover:bg-slate-50/30">
-                      <td className="py-3.5 pl-6 text-slate-500 font-medium">
-                        {format(new Date(bill.date), "dd MMM yyyy")}
-                      </td>
-                      <td className="py-3.5 font-mono font-bold text-slate-700">{bill.invoiceNumber}</td>
-                      <td className="py-3.5 text-slate-700">{bill.supplier}</td>
-                      <td className="py-3.5 text-slate-500">
-                        {bill.lines
-                          .map((line) => `${line.materialName} (${formatNumber(line.quantity, 0)} ${line.unit})`)
-                          .join(" · ")}
-                      </td>
-                      <td className="py-3.5 pr-6 text-right font-mono font-black text-emerald-600 tabular-nums">
-                        ₹{formatNumber(bill.total, 2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+        <CardContent className="pt-4">
+          <DataTable
+            table={billsTable}
+            columns={billColumns}
+            getRowKey={(bill) => `${bill.invoiceNumber}-${bill.supplier}-${bill.date}`}
+            searchPlaceholder="Search purchase bills…"
+            emptyMessage="No purchase bills recorded yet."
+          />
         </CardContent>
       </Card>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { Plus, Check, Play, Ban, Trash2, ShieldCheck, AlertTriangle, ArrowLeft, List, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { DataTable, type DataTableColumn, type DataTableFilter } from "@/components/ui/data-table";
+import { useDataTable } from "@/hooks/use-data-table";
 import { useManufacturing } from "@/context/manufacturing-context";
 import { formatNumber, getTodayString } from "@/lib/helpers";
 import type { WorkOrder, WorkOrderStatus } from "@/lib/types";
@@ -94,7 +96,6 @@ export function WorkOrdersList() {
     }
   }, [completeDialogOpen, selectedWo]);
 
-  // Pre-flight material checks for currently selected WO
   const preflightChecks = selectedWoProduct && selectedWo
     ? selectedWoProduct.formula.map((item) => {
       const material = materials.find((m) => m.id === item.materialId);
@@ -174,6 +175,109 @@ export function WorkOrdersList() {
         return "bg-destructive/10 text-destructive border border-destructive/20";
     }
   };
+
+  const woTable = useDataTable<WorkOrder>({
+    data: workOrders,
+    pageSize: 10,
+    initialSort: { columnId: "date", direction: "desc" },
+    searchFn: (row, q) =>
+      [row.woNumber, row.productName, row.status].join(" ").toLowerCase().includes(q),
+    filterFn: (row, filters) => {
+      if (filters.status && filters.status !== "all" && row.status !== filters.status) {
+        return false;
+      }
+      return true;
+    },
+    getSortValue: (row, col) => {
+      if (col === "wo") return row.woNumber;
+      if (col === "product") return row.productName;
+      if (col === "qty") return row.targetQuantity;
+      if (col === "date") return new Date(row.scheduledDate);
+      return row.status;
+    },
+  });
+
+  const woColumns: DataTableColumn<WorkOrder>[] = [
+    {
+      id: "wo",
+      header: "WO number",
+      sortable: true,
+      cell: (wo) => <span className="font-semibold text-xs">{wo.woNumber}</span>,
+    },
+    {
+      id: "product",
+      header: "Product",
+      sortable: true,
+      cell: (wo) => wo.productName,
+    },
+    {
+      id: "qty",
+      header: "Target qty",
+      sortable: true,
+      className: "text-right font-mono",
+      headerClassName: "text-right",
+      cell: (wo) => formatNumber(wo.targetQuantity),
+    },
+    {
+      id: "date",
+      header: "Scheduled",
+      sortable: true,
+      cell: (wo) => format(new Date(wo.scheduledDate), "dd MMM yyyy"),
+    },
+    {
+      id: "status",
+      header: "Status",
+      sortable: true,
+      cell: (wo) => (
+        <Badge variant="outline" className={cn("text-[9px] uppercase font-bold", getStatusStyle(wo.status))}>
+          {wo.status}
+        </Badge>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      className: "text-right",
+      headerClassName: "text-right",
+      cell: (wo) => (
+        <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          {wo.status === "Scheduled" && (
+            <Button variant="ghost" size="icon-sm" onClick={() => updateWorkOrderStatus(wo.id, "In Progress")} title="Start run">
+              <Play className="size-3.5 text-amber-500" />
+            </Button>
+          )}
+          {wo.status === "In Progress" && (
+            <Button variant="ghost" size="icon-sm" onClick={() => { setSelectedWoId(wo.id); setCompleteDialogOpen(true); }} title="Log completion">
+              <Check className="size-3.5 text-emerald-500" />
+            </Button>
+          )}
+          {["Scheduled", "In Progress", "Draft"].includes(wo.status) && (
+            <Button variant="ghost" size="icon-sm" onClick={() => updateWorkOrderStatus(wo.id, "Cancelled")} title="Cancel">
+              <Ban className="size-3.5 text-rose-500" />
+            </Button>
+          )}
+          <Button variant="ghost" size="icon-sm" onClick={() => { deleteWorkOrder(wo.id); if (selectedWoId === wo.id) setSelectedWoId(null); }} title="Delete">
+            <Trash2 className="size-3.5 text-rose-500" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  const woFilters: DataTableFilter[] = [
+    {
+      id: "status",
+      label: "Status",
+      allLabel: "All statuses",
+      options: [
+        { value: "Draft", label: "Draft" },
+        { value: "Scheduled", label: "Scheduled" },
+        { value: "In Progress", label: "In Progress" },
+        { value: "Completed", label: "Completed" },
+        { value: "Cancelled", label: "Cancelled" },
+      ],
+    },
+  ];
 
   return (
     <div className="w-full space-y-4">
@@ -331,109 +435,21 @@ export function WorkOrdersList() {
             </Button>
           </CardHeader>
           <CardContent>
-            {workOrders.length === 0 ? (
-              <div className="text-center py-10 text-sm text-slate-400 border border-dashed rounded-xl">
-                No scheduled work orders found.
-              </div>
-            ) : (
-              <div className="overflow-x-auto border border-slate-100 rounded-xl">
-                <Table>
-                  <TableHeader className="bg-slate-50/75">
-                    <TableRow className="border-b border-slate-150">
-                      <TableHead className="font-bold text-xs text-slate-500 py-3 pl-4">WO Number</TableHead>
-                      <TableHead className="font-bold text-xs text-slate-500 py-3">Product</TableHead>
-                      <TableHead className="font-bold text-xs text-slate-500 py-3 text-right">Target Qty</TableHead>
-                      <TableHead className="font-bold text-xs text-slate-500 py-3">Scheduled Date</TableHead>
-                      <TableHead className="font-bold text-xs text-slate-500 py-3">Status</TableHead>
-                      <TableHead className="font-bold text-xs text-slate-500 py-3 pr-4 text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {workOrders.map((wo) => (
-                      <TableRow
-                        key={wo.id}
-                        className={cn(
-                          "cursor-pointer transition-all border-b border-slate-100",
-                          selectedWoId === wo.id
-                            ? "bg-sky-50/45 border-l-4 border-sky-600 font-semibold"
-                            : "border-l-4 border-transparent hover:bg-slate-50/60"
-                        )}
-                        onClick={() => {
-                          setSelectedWoId(wo.id);
-                          setShowDetails(true);
-                        }}
-                      >
-                        <TableCell className="font-semibold text-slate-700 py-3.5 pl-4 text-xs">{wo.woNumber}</TableCell>
-                        <TableCell className="font-medium text-slate-700 py-3.5 text-xs">{wo.productName}</TableCell>
-                        <TableCell className="text-right font-mono font-bold text-slate-800 py-3.5 text-xs tabular-nums">
-                          {formatNumber(wo.targetQuantity)}
-                        </TableCell>
-                        <TableCell className="text-slate-500 py-3.5 text-xs">
-                          {format(new Date(wo.scheduledDate), "dd MMM yyyy")}
-                        </TableCell>
-                        <TableCell className="py-3.5">
-                          <Badge variant="outline" className={cn("text-[9px] uppercase font-bold px-2 py-0.5 tracking-wider", getStatusStyle(wo.status))}>
-                            {wo.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right py-3.5 pr-4" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex justify-end gap-1">
-                            {wo.status === "Scheduled" && (
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                onClick={() => updateWorkOrderStatus(wo.id, "In Progress")}
-                                className="text-slate-400 hover:text-slate-700 cursor-pointer"
-                                title="Start Run"
-                              >
-                                <Play className="size-3.5 text-amber-500" />
-                              </Button>
-                            )}
-                            {wo.status === "In Progress" && (
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                onClick={() => {
-                                  setSelectedWoId(wo.id);
-                                  setCompleteDialogOpen(true);
-                                }}
-                                className="text-slate-400 hover:text-slate-700 cursor-pointer"
-                                title="Log Completion"
-                              >
-                                <Check className="size-3.5 text-emerald-500" />
-                              </Button>
-                            )}
-                            {["Scheduled", "In Progress", "Draft"].includes(wo.status) && (
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                onClick={() => updateWorkOrderStatus(wo.id, "Cancelled")}
-                                className="text-slate-400 hover:text-rose-600 cursor-pointer"
-                                title="Cancel WO"
-                              >
-                                <Ban className="size-3.5 text-rose-500" />
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => {
-                                deleteWorkOrder(wo.id);
-                                if (selectedWoId === wo.id) setSelectedWoId(null);
-                              }}
-                              className="text-slate-400 hover:text-rose-600 cursor-pointer"
-                              title="Delete WO"
-                            >
-                              <Trash2 className="size-3.5 text-rose-500" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+            <DataTable
+              table={woTable}
+              columns={woColumns}
+              getRowKey={(wo) => wo.id}
+              searchPlaceholder="Search work orders…"
+              filters={woFilters}
+              emptyMessage="No scheduled work orders found."
+              onRowClick={(wo) => {
+                setSelectedWoId(wo.id);
+                setShowDetails(true);
+              }}
+              rowClassName={(wo) =>
+                selectedWoId === wo.id ? "bg-sky-50/45 ring-1 ring-inset ring-sky-200" : undefined
+              }
+            />
           </CardContent>
         </Card>
       )}

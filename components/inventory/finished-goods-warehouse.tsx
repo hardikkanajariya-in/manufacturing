@@ -5,16 +5,11 @@ import { Package, AlertTriangle } from "lucide-react";
 import { useManufacturing } from "@/context/manufacturing-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, type DataTableColumn, type DataTableFilter } from "@/components/ui/data-table";
+import { useDataTable } from "@/hooks/use-data-table";
 import { StockMovementTable } from "@/components/inventory/stock-movement-table";
 import { formatCurrency } from "@/lib/helpers";
+import type { Product } from "@/lib/types";
 
 export function FinishedGoodsWarehouse() {
   const { products, stockMovements } = useManufacturing();
@@ -43,6 +38,84 @@ export function FinishedGoodsWarehouse() {
     () => products.filter((p) => p.finishedStock === 0),
     [products]
   );
+
+  const stockTable = useDataTable<Product>({
+    data: products,
+    pageSize: 10,
+    initialSort: { columnId: "stock", direction: "desc" },
+    searchFn: (row, q) => row.name.toLowerCase().includes(q),
+    filterFn: (row, filters) => {
+      if (filters.status === "all") return true;
+      if (filters.status === "out") return row.finishedStock === 0;
+      if (filters.status === "low") return row.finishedStock > 0 && row.finishedStock < 50;
+      if (filters.status === "ok") return row.finishedStock >= 50;
+      return true;
+    },
+    getSortValue: (row, col) => {
+      if (col === "product") return row.name;
+      if (col === "stock") return row.finishedStock;
+      if (col === "price") return row.sellingPrice;
+      return row.finishedStock * row.sellingPrice;
+    },
+  });
+
+  const stockColumns: DataTableColumn<Product>[] = [
+    {
+      id: "product",
+      header: "Product",
+      sortable: true,
+      cell: (p) => <span className="font-medium">{p.name}</span>,
+    },
+    {
+      id: "stock",
+      header: "In warehouse",
+      sortable: true,
+      className: "text-right font-mono",
+      headerClassName: "text-right",
+      cell: (p) => `${p.finishedStock.toLocaleString()} units`,
+    },
+    {
+      id: "price",
+      header: "Sell price",
+      sortable: true,
+      className: "text-right font-mono",
+      headerClassName: "text-right",
+      cell: (p) => formatCurrency(p.sellingPrice),
+    },
+    {
+      id: "value",
+      header: "Value",
+      sortable: true,
+      className: "text-right font-mono",
+      headerClassName: "text-right",
+      cell: (p) => formatCurrency(p.finishedStock * p.sellingPrice),
+    },
+    {
+      id: "status",
+      header: "Status",
+      cell: (p) =>
+        p.finishedStock === 0 ? (
+          <Badge variant="secondary" className="bg-red-100 text-red-800">Out of stock</Badge>
+        ) : p.finishedStock < 50 ? (
+          <Badge variant="secondary" className="bg-amber-100 text-amber-800">Low</Badge>
+        ) : (
+          <Badge variant="secondary" className="bg-emerald-100 text-emerald-800">Available</Badge>
+        ),
+    },
+  ];
+
+  const stockFilters: DataTableFilter[] = [
+    {
+      id: "status",
+      label: "Status",
+      allLabel: "All statuses",
+      options: [
+        { value: "ok", label: "Available" },
+        { value: "low", label: "Low stock" },
+        { value: "out", label: "Out of stock" },
+      ],
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -109,50 +182,14 @@ export function FinishedGoodsWarehouse() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead className="text-right">In warehouse</TableHead>
-                  <TableHead className="text-right">Sell price</TableHead>
-                  <TableHead className="text-right">Value</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell className="text-right font-mono">
-                      {product.finishedStock.toLocaleString()} units
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {formatCurrency(product.sellingPrice)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {formatCurrency(product.finishedStock * product.sellingPrice)}
-                    </TableCell>
-                    <TableCell>
-                      {product.finishedStock === 0 ? (
-                        <Badge variant="secondary" className="bg-red-100 text-red-800">
-                          Out of stock
-                        </Badge>
-                      ) : product.finishedStock < 50 ? (
-                        <Badge variant="secondary" className="bg-amber-100 text-amber-800">
-                          Low
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="bg-emerald-100 text-emerald-800">
-                          Available
-                        </Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable
+            table={stockTable}
+            columns={stockColumns}
+            getRowKey={(p) => p.id}
+            searchPlaceholder="Search products…"
+            filters={stockFilters}
+            emptyMessage="No products registered."
+          />
         </CardContent>
       </Card>
 

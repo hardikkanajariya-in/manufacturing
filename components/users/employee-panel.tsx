@@ -15,14 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, type DataTableColumn, type DataTableFilter } from "@/components/ui/data-table";
+import { useDataTable } from "@/hooks/use-data-table";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import type { UserRole } from "@/lib/types";
+import type { Employee, UserRole } from "@/lib/types";
 
 const roleStyles: Record<UserRole, string> = {
   Manager: "bg-primary/10 text-primary border-primary/20",
@@ -81,6 +75,129 @@ export function EmployeePanel() {
     updateEmployee(id, { isActive: !currentlyActive });
   };
 
+  const employeeTable = useDataTable<Employee>({
+    data: employees,
+    pageSize: 10,
+    initialSort: { columnId: "name", direction: "asc" },
+    searchFn: (row, q) =>
+      [row.name, row.email, row.employeeId, row.role].join(" ").toLowerCase().includes(q),
+    filterFn: (row, filters) => {
+      if (filters.role && filters.role !== "all" && row.role !== filters.role) return false;
+      if (filters.status && filters.status !== "all") {
+        if (filters.status === "active" && !row.isActive) return false;
+        if (filters.status === "inactive" && row.isActive) return false;
+      }
+      return true;
+    },
+    getSortValue: (row, col) => {
+      if (col === "name") return row.name;
+      if (col === "shift") return row.shift;
+      if (col === "role") return row.role;
+      return row.isActive ? 1 : 0;
+    },
+  });
+
+  const employeeColumns: DataTableColumn<Employee>[] = [
+    {
+      id: "name",
+      header: "Employee",
+      sortable: true,
+      cell: (e) => (
+        <div>
+          <p className="font-medium">{e.name}</p>
+          <p className="text-xs text-muted-foreground font-mono">{e.employeeId}</p>
+        </div>
+      ),
+    },
+    {
+      id: "contact",
+      header: "Contact",
+      cell: (e) => (
+        <div>
+          <p className="text-xs flex items-center gap-1 text-muted-foreground">
+            <Mail className="size-3" /> {e.email}
+          </p>
+          {e.phone && (
+            <p className="text-xs flex items-center gap-1 text-muted-foreground mt-0.5">
+              <Phone className="size-3" /> {e.phone}
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "shift",
+      header: "Shift",
+      sortable: true,
+      cell: (e) => <span className="text-xs">{e.shift}</span>,
+    },
+    {
+      id: "role",
+      header: "Role",
+      sortable: true,
+      cell: (e) => (
+        <Badge variant="outline" className={cn("text-[10px]", roleStyles[e.role])}>
+          <Shield className="size-3 mr-1" />
+          {e.role}
+        </Badge>
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      sortable: true,
+      cell: (e) => (
+        <Badge
+          variant="outline"
+          className={cn(
+            "text-[10px]",
+            e.isActive ? "text-success border-success/30" : "text-muted-foreground"
+          )}
+        >
+          {e.isActive ? "Active" : "Inactive"}
+        </Badge>
+      ),
+    },
+    {
+      id: "action",
+      header: "Action",
+      className: "text-right",
+      headerClassName: "text-right",
+      cell: (e) => (
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-xs h-8"
+          onClick={() => toggleActive(e.id, e.isActive)}
+        >
+          {e.isActive ? "Deactivate" : "Activate"}
+        </Button>
+      ),
+    },
+  ];
+
+  const employeeFilters: DataTableFilter[] = [
+    {
+      id: "role",
+      label: "Role",
+      allLabel: "All roles",
+      options: [
+        { value: "Manager", label: "Manager" },
+        { value: "Operator", label: "Operator" },
+        { value: "Admin", label: "Admin" },
+      ],
+    },
+    {
+      id: "status",
+      label: "Status",
+      allLabel: "All statuses",
+      options: [
+        { value: "active", label: "Active" },
+        { value: "inactive", label: "Inactive" },
+      ],
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
@@ -116,71 +233,16 @@ export function EmployeePanel() {
             Add employee
           </Button>
         </CardHeader>
-        <CardContent className="p-0">
-          <div className="data-table-wrap border-0 rounded-none">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Shift</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right pr-4">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {employees.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                      No employees registered for this unit.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  employees.map((employee) => (
-                    <TableRow key={employee.id} className={!employee.isActive ? "opacity-50" : undefined}>
-                      <TableCell>
-                        <p className="font-medium">{employee.name}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{employee.employeeId}</p>
-                      </TableCell>
-                      <TableCell>
-                        <p className="text-xs flex items-center gap-1 text-muted-foreground">
-                          <Mail className="size-3" /> {employee.email}
-                        </p>
-                        {employee.phone && (
-                          <p className="text-xs flex items-center gap-1 text-muted-foreground mt-0.5">
-                            <Phone className="size-3" /> {employee.phone}
-                          </p>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-xs">{employee.shift}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={cn("text-[10px]", roleStyles[employee.role])}>
-                          <Shield className="size-3 mr-1" />
-                          {employee.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={cn("text-[10px]", employee.isActive ? "text-success border-success/30" : "text-muted-foreground")}>
-                          {employee.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right pr-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs h-8"
-                          onClick={() => toggleActive(employee.id, employee.isActive)}
-                        >
-                          {employee.isActive ? "Deactivate" : "Activate"}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+        <CardContent>
+          <DataTable
+            table={employeeTable}
+            columns={employeeColumns}
+            getRowKey={(e) => e.id}
+            searchPlaceholder="Search employees…"
+            filters={employeeFilters}
+            emptyMessage="No employees registered for this unit."
+            rowClassName={(e) => (!e.isActive ? "opacity-50" : undefined)}
+          />
         </CardContent>
       </Card>
 

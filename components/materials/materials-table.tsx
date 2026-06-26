@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useDataTable } from "@/hooks/use-data-table";
+import { DATA_TABLE_MIN_HEIGHT } from "@/lib/data-table-types";
 import { useManufacturing } from "@/context/manufacturing-context";
 import { formatCurrency, formatNumber, getStockStatus } from "@/lib/helpers";
 import type { RawMaterial } from "@/lib/types";
@@ -68,6 +70,22 @@ export function MaterialsTable({ onSelectMaterial, selectedMaterialId }: Materia
       (statusFilter === "Adequate" && status === "Adequate");
     return matchesSearch && matchesStatus;
   });
+
+  const materialsTable = useDataTable<RawMaterial>({
+    data: filteredMaterials,
+    pageSize: 8,
+    initialSort: { columnId: "name", direction: "asc" },
+    getSortValue: (row, col) => {
+      if (col === "name") return row.name;
+      if (col === "stock") return row.availableStock;
+      if (col === "value") return row.availableStock * row.unitCost;
+      return row.minimumStock;
+    },
+  });
+
+  const { paginatedData, page, setPage, totalPages, filteredCount, pageSize } = materialsTable;
+  const rangeStart = filteredCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, filteredCount);
 
   const openAdd = () => {
     setEditingMaterial(null);
@@ -136,13 +154,15 @@ export function MaterialsTable({ onSelectMaterial, selectedMaterialId }: Materia
             </div>
           </div>
 
-          {filteredMaterials.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
+          {filteredCount === 0 ? (
+            <div className={cn("rounded-lg border border-dashed border-border flex items-center justify-center text-sm text-muted-foreground", DATA_TABLE_MIN_HEIGHT)}>
               No materials match your search or filter.
             </div>
           ) : (
-            <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
-              {filteredMaterials.map((material) => {
+            <>
+            <div className={cn("divide-y divide-border rounded-lg border border-border overflow-hidden flex flex-col", DATA_TABLE_MIN_HEIGHT)}>
+              <div className="flex-1">
+              {paginatedData.map((material) => {
                 const status = getStockStatus(material);
                 const isLow = status === "Critical" || status === "Low Stock";
                 const fillPercent = Math.min(
@@ -244,7 +264,19 @@ export function MaterialsTable({ onSelectMaterial, selectedMaterialId }: Materia
                   </div>
                 );
               })}
+              </div>
+              <div className="mt-auto flex items-center justify-between border-t border-border bg-muted/20 px-4 py-3">
+                <p className="text-xs text-muted-foreground">
+                  Showing {rangeStart}–{rangeEnd} of {filteredCount}
+                </p>
+                <div className="flex items-center gap-1">
+                  <Button type="button" variant="outline" size="icon-sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>‹</Button>
+                  <span className="min-w-[80px] text-center text-xs font-medium">Page {page} / {totalPages}</span>
+                  <Button type="button" variant="outline" size="icon-sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>›</Button>
+                </div>
+              </div>
             </div>
+            </>
           )}
 
           <p className="mt-3 text-xs text-muted-foreground">

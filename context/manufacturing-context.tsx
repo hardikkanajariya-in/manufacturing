@@ -17,6 +17,7 @@ import {
   initialProducts,
   initialRestocks,
   initialSales,
+  initialStockMovements,
   initialSuppliers,
   initialUnits,
   initialWorkOrders,
@@ -154,7 +155,7 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
   const [suppliers, setSuppliers] = useState<Supplier[]>(initialSuppliers);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>(initialWorkOrders);
   const [sales, setSales] = useState<SaleRecord[]>(initialSales);
-  const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
+  const [stockMovements, setStockMovements] = useState<StockMovement[]>(initialStockMovements);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<UserProfile>(defaultUser);
 

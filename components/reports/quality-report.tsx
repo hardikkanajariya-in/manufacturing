@@ -13,14 +13,8 @@ import {
 } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { useDataTable } from "@/hooks/use-data-table";
 import { useManufacturing } from "@/context/manufacturing-context";
 import { formatNumber } from "@/lib/helpers";
 import type { ProductionRecord } from "@/lib/types";
@@ -57,6 +51,98 @@ export function QualityReport({ filteredRecords }: QualityReportProps) {
     .filter((d) => d.total > 0);
 
   const defectRecords = productionRecords.filter((r) => (r.scrapQuantity || 0) > 0 || r.qualityStatus !== "Passed");
+
+  const defectTable = useDataTable<ProductionRecord>({
+    data: defectRecords,
+    pageSize: 10,
+    initialSort: { columnId: "date", direction: "desc" },
+    searchFn: (row, q) =>
+      row.productName.toLowerCase().includes(q) ||
+      row.qualityStatus.toLowerCase().includes(q),
+    filterFn: (row, filters) => {
+      if (filters.status && filters.status !== "all" && row.qualityStatus !== filters.status) {
+        return false;
+      }
+      return true;
+    },
+    getSortValue: (row, col) => {
+      if (col === "date") return new Date(row.productionDate);
+      if (col === "product") return row.productName;
+      if (col === "passed") return row.quantity;
+      if (col === "scrap") return row.scrapQuantity || 0;
+      if (col === "rate") {
+        const total = row.quantity + (row.scrapQuantity || 0);
+        return total > 0 ? ((row.scrapQuantity || 0) / total) * 100 : 0;
+      }
+      return row.qualityStatus;
+    },
+  });
+
+  const defectColumns: DataTableColumn<ProductionRecord>[] = [
+    {
+      id: "date",
+      header: "Date",
+      sortable: true,
+      cell: (record) => format(new Date(record.productionDate), "dd MMM yyyy"),
+    },
+    {
+      id: "product",
+      header: "Product Name",
+      sortable: true,
+      cell: (record) => <span className="font-semibold">{record.productName}</span>,
+    },
+    {
+      id: "passed",
+      header: "Passed Yield",
+      sortable: true,
+      className: "text-right tabular-nums text-emerald-600 dark:text-emerald-400",
+      headerClassName: "text-right",
+      cell: (record) => formatNumber(record.quantity),
+    },
+    {
+      id: "scrap",
+      header: "Scrap Quantity",
+      sortable: true,
+      className: "text-right tabular-nums text-destructive",
+      headerClassName: "text-right",
+      cell: (record) => formatNumber(record.scrapQuantity || 0),
+    },
+    {
+      id: "rate",
+      header: "Scrap Rate",
+      sortable: true,
+      className: "text-right tabular-nums font-semibold text-destructive",
+      headerClassName: "text-right",
+      cell: (record) => {
+        const total = record.quantity + (record.scrapQuantity || 0);
+        const rate = total > 0 ? ((record.scrapQuantity || 0) / total) * 100 : 0;
+        return `${rate.toFixed(1)}%`;
+      },
+    },
+    {
+      id: "status",
+      header: "Quality Status",
+      sortable: true,
+      cell: (record) => (
+        <Badge variant={record.qualityStatus === "Passed" ? "outline" : "destructive"}>
+          {record.qualityStatus}
+        </Badge>
+      ),
+    },
+  ];
+
+  const defectFilters = [
+    {
+      id: "status",
+      label: "Status",
+      allLabel: "All statuses",
+      options: [
+        { value: "Passed", label: "Passed" },
+        { value: "Failed", label: "Failed" },
+        { value: "Pending", label: "Pending" },
+      ],
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -161,52 +247,14 @@ export function QualityReport({ filteredRecords }: QualityReportProps) {
           <p className="text-xs text-muted-foreground">Audit list of production runs containing scrap or flags.</p>
         </CardHeader>
         <CardContent>
-          {defectRecords.length === 0 ? (
-            <div className="text-center py-6 text-sm text-muted-foreground">
-              All logged production runs have 100% Passed quality.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Product Name</TableHead>
-                  <TableHead className="text-right">Passed Yield</TableHead>
-                  <TableHead className="text-right">Scrap Quantity</TableHead>
-                  <TableHead className="text-right">Scrap Rate</TableHead>
-                  <TableHead>Quality Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {defectRecords.map((record) => {
-                  const total = record.quantity + (record.scrapQuantity || 0);
-                  const rate = total > 0 ? ((record.scrapQuantity || 0) / total) * 100 : 0;
-                  return (
-                    <TableRow key={record.id}>
-                      <TableCell>
-                        {format(new Date(record.productionDate), "dd MMM yyyy")}
-                      </TableCell>
-                      <TableCell className="font-semibold">{record.productName}</TableCell>
-                      <TableCell className="text-right tabular-nums text-emerald-600 dark:text-emerald-400">
-                        {formatNumber(record.quantity)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-destructive">
-                        {formatNumber(record.scrapQuantity || 0)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums font-semibold text-destructive">
-                        {rate.toFixed(1)}%
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={record.qualityStatus === "Passed" ? "outline" : "destructive"}>
-                          {record.qualityStatus}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
+          <DataTable
+            table={defectTable}
+            columns={defectColumns}
+            getRowKey={(record) => record.id}
+            searchPlaceholder="Search defects by product or status…"
+            filters={defectFilters}
+            emptyMessage="All logged production runs have 100% Passed quality."
+          />
         </CardContent>
       </Card>
     </div>
