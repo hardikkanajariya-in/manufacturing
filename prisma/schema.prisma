@@ -1,0 +1,222 @@
+// CementPro MES — PostgreSQL schema (Prisma)
+// Prototype uses in-memory context; swap to Prisma queries when DB is connected.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MaterialUnit {
+  Kg
+  Litre
+}
+
+enum QualityStatus {
+  Passed
+  Failed
+  Rework
+}
+
+enum WorkOrderStatus {
+  Draft
+  Scheduled
+  InProgress @map("In Progress")
+  Completed
+  Cancelled
+}
+
+enum UserRole {
+  Manager
+  Operator
+  Admin
+}
+
+enum PaymentStatus {
+  Paid
+  Pending
+  Partial
+}
+
+model PlantUnit {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  location  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  employees         Employee[]
+  materials         RawMaterial[]
+  products          Product[]
+  productionRecords ProductionRecord[]
+  restocks          RestockRecord[]
+  workOrders        WorkOrder[]
+  sales             SaleRecord[]
+}
+
+model Employee {
+  id         String   @id @default(cuid())
+  employeeId String
+  name       String
+  email      String   @unique
+  phone      String   @default("")
+  role       UserRole @default(Operator)
+  shift      String   @default("")
+  isActive   Boolean  @default(true)
+  unitId     String
+  unit       PlantUnit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([employeeId, unitId])
+  @@index([unitId])
+}
+
+model RawMaterial {
+  id             String       @id @default(cuid())
+  name           String
+  unit           MaterialUnit
+  availableStock Float        @default(0)
+  minimumStock   Float        @default(0)
+  unitCost       Float        @default(0)
+  unitId         String
+  unit           PlantUnit    @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  formulaItems FormulaItem[]
+  restocks     RestockRecord[]
+
+  @@index([unitId])
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  name          String
+  description   String   @default("")
+  sellingPrice  Float    @default(0)
+  finishedStock Float    @default(0)
+  unitId        String
+  unit          PlantUnit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  formulaItems      FormulaItem[]
+  productionRecords ProductionRecord[]
+  sales             SaleRecord[]
+
+  @@index([unitId])
+}
+
+model FormulaItem {
+  id         String      @id @default(cuid())
+  productId  String
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  materialId String
+  material   RawMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  quantity   Float
+
+  @@unique([productId, materialId])
+}
+
+model ProductionRecord {
+  id              String        @id @default(cuid())
+  productId       String
+  product         Product       @relation(fields: [productId], references: [id])
+  productName     String
+  quantity        Float
+  scrapQuantity   Float         @default(0)
+  qualityStatus   QualityStatus
+  productionDate  DateTime      @db.Date
+  materialCost    Float
+  revenue         Float
+  profit          Float
+  unitId          String
+  unit            PlantUnit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+
+  consumptions MaterialConsumption[]
+
+  @@index([unitId, productionDate])
+}
+
+model MaterialConsumption {
+  id                 String           @id @default(cuid())
+  productionRecordId String
+  productionRecord   ProductionRecord @relation(fields: [productionRecordId], references: [id], onDelete: Cascade)
+  materialId         String
+  materialName       String
+  unit               MaterialUnit
+  quantity           Float
+  unitCost           Float
+}
+
+model RestockRecord {
+  id            String       @id @default(cuid())
+  materialId    String
+  material      RawMaterial  @relation(fields: [materialId], references: [id])
+  materialName  String
+  quantity      Float
+  unit          MaterialUnit
+  unitCost      Float
+  totalCost     Float
+  supplier      String
+  invoiceNumber String?
+  date          DateTime     @db.Date
+  unitId        String
+  unit          PlantUnit    @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  createdAt     DateTime     @default(now())
+
+  @@index([unitId, date])
+}
+
+model WorkOrder {
+  id              String          @id @default(cuid())
+  woNumber        String
+  productId       String
+  productName     String
+  targetQuantity  Float
+  scheduledDate   DateTime        @db.Date
+  status          WorkOrderStatus @default(Draft)
+  notes           String?
+  unitId          String
+  unit            PlantUnit       @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([unitId, scheduledDate])
+}
+
+model SaleRecord {
+  id            String        @id @default(cuid())
+  productId     String
+  product       Product       @relation(fields: [productId], references: [id])
+  productName   String
+  quantity      Float
+  unitPrice     Float
+  totalAmount   Float
+  customerName  String
+  invoiceNumber String?
+  paymentStatus PaymentStatus @default(Pending)
+  saleDate      DateTime      @db.Date
+  notes         String?
+  unitId        String
+  unit          PlantUnit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  createdAt     DateTime      @default(now())
+
+  @@index([unitId, saleDate])
+}
+
+model SystemSettings {
+  id                 String   @id @default("default")
+  lowStockThreshold  Float    @default(1000)
+  enableEmailAlerts  Boolean  @default(true)
+  enableSmsAlerts    Boolean  @default(false)
+  targetDailyOutput  Json     @default("{}")
+  updatedAt          DateTime @updatedAt
+}

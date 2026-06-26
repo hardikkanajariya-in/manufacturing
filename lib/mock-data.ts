@@ -1,54 +1,96 @@
-import type { Product, ProductionRecord, RawMaterial, RestockRecord, WorkOrder } from "@/lib/types";
+import type {
+  Employee,
+  PlantUnit,
+  Product,
+  ProductionRecord,
+  RawMaterial,
+  RestockRecord,
+  SaleRecord,
+  WorkOrder,
+} from "@/lib/types";
+
+export const DEFAULT_UNIT_ID = "unit-1";
+
+export const initialUnits: PlantUnit[] = [
+  {
+    id: "unit-1",
+    code: "U4",
+    name: "CementPro Factory — Unit 4",
+    location: "Sector 12, Industrial Area, Gujarat",
+    isActive: true,
+  },
+  {
+    id: "unit-2",
+    code: "U7",
+    name: "CementPro Factory — Unit 7",
+    location: "MIDC Zone, Nashik, Maharashtra",
+    isActive: true,
+  },
+];
+
+export const initialEmployees: Employee[] = [
+  {
+    id: "emp-1",
+    employeeId: "CP-4902",
+    name: "Rajesh Sharma",
+    email: "rajesh.sharma@cementpro.com",
+    phone: "+91 98765 43210",
+    role: "Manager",
+    shift: "Shift A (06:00 – 14:00)",
+    unitId: "unit-1",
+    isActive: true,
+  },
+  {
+    id: "emp-2",
+    employeeId: "CP-8831",
+    name: "Amit Patel",
+    email: "operator.a@cementpro.com",
+    phone: "+91 98765 12345",
+    role: "Operator",
+    shift: "Shift B (14:00 – 22:00)",
+    unitId: "unit-1",
+    isActive: true,
+  },
+  {
+    id: "emp-3",
+    employeeId: "CP-5104",
+    name: "Priya Desai",
+    email: "priya.desai@cementpro.com",
+    phone: "+91 98200 44102",
+    role: "Manager",
+    shift: "Shift A (06:00 – 14:00)",
+    unitId: "unit-2",
+    isActive: true,
+  },
+  {
+    id: "emp-4",
+    employeeId: "CP-9012",
+    name: "Vikram Singh",
+    email: "vikram.singh@cementpro.com",
+    phone: "+91 98110 22033",
+    role: "Operator",
+    shift: "Shift C (22:00 – 06:00)",
+    unitId: "unit-2",
+    isActive: true,
+  },
+];
 
 export const initialMaterials: RawMaterial[] = [
-  {
-    id: "mat-cement",
-    name: "Cement",
-    unit: "Kg",
-    availableStock: 4850,
-    minimumStock: 1000,
-    unitCost: 12.0, // ₹12 per Kg
-  },
-  {
-    id: "mat-sand",
-    name: "Sand",
-    unit: "Kg",
-    availableStock: 7200,
-    minimumStock: 2000,
-    unitCost: 2.5, // ₹2.5 per Kg
-  },
-  {
-    id: "mat-stone-dust",
-    name: "Stone Dust",
-    unit: "Kg",
-    availableStock: 5400,
-    minimumStock: 1500,
-    unitCost: 1.8, // ₹1.8 per Kg
-  },
-  {
-    id: "mat-fly-ash",
-    name: "Fly Ash",
-    unit: "Kg",
-    availableStock: 680,
-    minimumStock: 800,
-    unitCost: 3.5, // ₹3.5 per Kg
-  },
-  {
-    id: "mat-water",
-    name: "Water",
-    unit: "Litre",
-    availableStock: 9200,
-    minimumStock: 2000,
-    unitCost: 0.15, // ₹0.15 per Litre
-  },
+  { id: "mat-cement", unitId: DEFAULT_UNIT_ID, name: "Cement", unit: "Kg", availableStock: 4850, minimumStock: 1000, unitCost: 12.0 },
+  { id: "mat-sand", unitId: DEFAULT_UNIT_ID, name: "Sand", unit: "Kg", availableStock: 7200, minimumStock: 2000, unitCost: 2.5 },
+  { id: "mat-stone-dust", unitId: DEFAULT_UNIT_ID, name: "Stone Dust", unit: "Kg", availableStock: 5400, minimumStock: 1500, unitCost: 1.8 },
+  { id: "mat-fly-ash", unitId: DEFAULT_UNIT_ID, name: "Fly Ash", unit: "Kg", availableStock: 680, minimumStock: 800, unitCost: 3.5 },
+  { id: "mat-water", unitId: DEFAULT_UNIT_ID, name: "Water", unit: "Litre", availableStock: 9200, minimumStock: 2000, unitCost: 0.15 },
 ];
 
 export const initialProducts: Product[] = [
   {
     id: "prod-paver",
+    unitId: DEFAULT_UNIT_ID,
     name: "Paver Blocks",
     description: "Interlocking cement pavers for pavements and driveways.",
-    sellingPrice: 18.0, // ₹18 per block
+    sellingPrice: 18.0,
+    finishedStock: 1240,
     formula: [
       { materialId: "mat-cement", quantity: 0.5 },
       { materialId: "mat-sand", quantity: 1.2 },
@@ -58,9 +100,11 @@ export const initialProducts: Product[] = [
   },
   {
     id: "prod-kerb",
+    unitId: DEFAULT_UNIT_ID,
     name: "Kerb Stones",
     description: "Precast kerb stones for road edging and landscaping.",
-    sellingPrice: 55.0, // ₹55 per stone
+    sellingPrice: 55.0,
+    finishedStock: 420,
     formula: [
       { materialId: "mat-cement", quantity: 0.8 },
       { materialId: "mat-sand", quantity: 1.5 },
@@ -70,9 +114,11 @@ export const initialProducts: Product[] = [
   },
   {
     id: "prod-rcc",
+    unitId: DEFAULT_UNIT_ID,
     name: "RCC Pipes",
     description: "Reinforced cement concrete pipes for drainage systems.",
-    sellingPrice: 950.0, // ₹950 per pipe
+    sellingPrice: 950.0,
+    finishedStock: 68,
     formula: [
       { materialId: "mat-cement", quantity: 2.0 },
       { materialId: "mat-sand", quantity: 3.0 },
@@ -92,6 +138,7 @@ function daysAgo(days: number): string {
 export const initialProductionRecords: ProductionRecord[] = [
   {
     id: "prod-rec-1",
+    unitId: DEFAULT_UNIT_ID,
     productId: "prod-paver",
     productName: "Paver Blocks",
     quantity: 320,
@@ -111,6 +158,7 @@ export const initialProductionRecords: ProductionRecord[] = [
   },
   {
     id: "prod-rec-2",
+    unitId: DEFAULT_UNIT_ID,
     productId: "prod-kerb",
     productName: "Kerb Stones",
     quantity: 180,
@@ -130,6 +178,7 @@ export const initialProductionRecords: ProductionRecord[] = [
   },
   {
     id: "prod-rec-3",
+    unitId: DEFAULT_UNIT_ID,
     productId: "prod-rcc",
     productName: "RCC Pipes",
     quantity: 45,
@@ -150,6 +199,7 @@ export const initialProductionRecords: ProductionRecord[] = [
   },
   {
     id: "prod-rec-4",
+    unitId: DEFAULT_UNIT_ID,
     productId: "prod-paver",
     productName: "Paver Blocks",
     quantity: 280,
@@ -169,6 +219,7 @@ export const initialProductionRecords: ProductionRecord[] = [
   },
   {
     id: "prod-rec-5",
+    unitId: DEFAULT_UNIT_ID,
     productId: "prod-kerb",
     productName: "Kerb Stones",
     quantity: 150,
@@ -191,6 +242,7 @@ export const initialProductionRecords: ProductionRecord[] = [
 export const initialRestocks: RestockRecord[] = [
   {
     id: "rest-1",
+    unitId: DEFAULT_UNIT_ID,
     materialId: "mat-cement",
     materialName: "Cement",
     quantity: 2000,
@@ -198,11 +250,13 @@ export const initialRestocks: RestockRecord[] = [
     unitCost: 11.5,
     totalCost: 23000,
     supplier: "Ultratech Cement Ltd",
+    invoiceNumber: "INV-UT-2401",
     date: daysAgo(5),
     createdAt: new Date().toISOString(),
   },
   {
     id: "rest-2",
+    unitId: DEFAULT_UNIT_ID,
     materialId: "mat-sand",
     materialName: "Sand",
     quantity: 5000,
@@ -210,11 +264,13 @@ export const initialRestocks: RestockRecord[] = [
     unitCost: 2.3,
     totalCost: 11500,
     supplier: "Narmada Sands Ltd",
+    invoiceNumber: "INV-NS-1188",
     date: daysAgo(4),
     createdAt: new Date().toISOString(),
   },
   {
     id: "rest-3",
+    unitId: DEFAULT_UNIT_ID,
     materialId: "mat-stone-dust",
     materialName: "Stone Dust",
     quantity: 3000,
@@ -222,11 +278,13 @@ export const initialRestocks: RestockRecord[] = [
     unitCost: 1.7,
     totalCost: 5100,
     supplier: "Rajasthan Crushers",
+    invoiceNumber: "INV-RC-552",
     date: daysAgo(3),
     createdAt: new Date().toISOString(),
   },
   {
     id: "rest-4",
+    unitId: DEFAULT_UNIT_ID,
     materialId: "mat-fly-ash",
     materialName: "Fly Ash",
     quantity: 1000,
@@ -234,6 +292,7 @@ export const initialRestocks: RestockRecord[] = [
     unitCost: 3.2,
     totalCost: 3200,
     supplier: "NTPC Ash Division",
+    invoiceNumber: "INV-NT-901",
     date: daysAgo(2),
     createdAt: new Date().toISOString(),
   },
@@ -242,6 +301,7 @@ export const initialRestocks: RestockRecord[] = [
 export const initialWorkOrders: WorkOrder[] = [
   {
     id: "wo-1",
+    unitId: DEFAULT_UNIT_ID,
     woNumber: "WO-20260626-001",
     productId: "prod-paver",
     productName: "Paver Blocks",
@@ -253,6 +313,7 @@ export const initialWorkOrders: WorkOrder[] = [
   },
   {
     id: "wo-2",
+    unitId: DEFAULT_UNIT_ID,
     woNumber: "WO-20260625-002",
     productId: "prod-kerb",
     productName: "Kerb Stones",
@@ -264,6 +325,7 @@ export const initialWorkOrders: WorkOrder[] = [
   },
   {
     id: "wo-3",
+    unitId: DEFAULT_UNIT_ID,
     woNumber: "WO-20260627-003",
     productId: "prod-rcc",
     productName: "RCC Pipes",
@@ -275,6 +337,7 @@ export const initialWorkOrders: WorkOrder[] = [
   },
   {
     id: "wo-4",
+    unitId: DEFAULT_UNIT_ID,
     woNumber: "WO-20260626-004",
     productId: "prod-paver",
     productName: "Paver Blocks",
@@ -286,3 +349,48 @@ export const initialWorkOrders: WorkOrder[] = [
   },
 ];
 
+export const initialSales: SaleRecord[] = [
+  {
+    id: "sale-1",
+    unitId: DEFAULT_UNIT_ID,
+    productId: "prod-paver",
+    productName: "Paver Blocks",
+    quantity: 500,
+    unitPrice: 18.0,
+    totalAmount: 9000,
+    customerName: "Gujarat Highway Authority",
+    invoiceNumber: "SO-2026-0412",
+    paymentStatus: "Paid",
+    saleDate: daysAgo(1),
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "sale-2",
+    unitId: DEFAULT_UNIT_ID,
+    productId: "prod-kerb",
+    productName: "Kerb Stones",
+    quantity: 120,
+    unitPrice: 55.0,
+    totalAmount: 6600,
+    customerName: "Shree Infra Developers",
+    invoiceNumber: "SO-2026-0398",
+    paymentStatus: "Pending",
+    saleDate: daysAgo(2),
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "sale-3",
+    unitId: DEFAULT_UNIT_ID,
+    productId: "prod-rcc",
+    productName: "RCC Pipes",
+    quantity: 12,
+    unitPrice: 950.0,
+    totalAmount: 11400,
+    customerName: "Municipal Drainage Board",
+    invoiceNumber: "SO-2026-0385",
+    paymentStatus: "Partial",
+    saleDate: daysAgo(4),
+    notes: "Balance due in 15 days.",
+    createdAt: new Date().toISOString(),
+  },
+];

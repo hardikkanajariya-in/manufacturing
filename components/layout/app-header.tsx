@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useManufacturing } from "@/context/manufacturing-context";
+import { UnitSwitcher } from "@/components/layout/unit-switcher";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -12,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bell, ChevronDown, LogOut, Settings, User } from "lucide-react";
+import { ChevronDown, LogOut, Settings, User } from "lucide-react";
 
 interface AppHeaderProps {
   title: string;
@@ -35,39 +36,35 @@ export function AppHeader({ title, description }: AppHeaderProps) {
     .slice(0, 2)
     .toUpperCase();
 
+  const canManage = user.role === "Manager" || user.role === "Admin";
+
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-background px-6">
-      <div>
-        <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
+    <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 sm:px-6">
+      <div className="min-w-0 flex-1">
+        <h1 className="truncate text-base font-semibold tracking-tight sm:text-lg">{title}</h1>
         {description ? (
-          <p className="text-sm text-muted-foreground">{description}</p>
+          <p className="truncate text-xs text-muted-foreground sm:text-sm">{description}</p>
         ) : null}
       </div>
 
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          className="flex size-9 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
-          aria-label="Notifications"
-        >
-          <Bell className="size-4" />
-        </button>
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        {canManage && <UnitSwitcher compact />}
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-2 rounded-md border border-border px-2 py-1.5 text-sm hover:bg-muted cursor-pointer">
+          <DropdownMenuTrigger className="flex max-w-[160px] items-center gap-2 rounded-md border border-border px-2 py-1.5 text-sm hover:bg-muted cursor-pointer sm:max-w-none">
             <Avatar className="size-7">
               <AvatarFallback className="bg-primary text-xs text-primary-foreground font-medium">
                 {initials}
               </AvatarFallback>
             </Avatar>
-            <div className="hidden text-left sm:block">
-              <p className="text-sm font-medium leading-none">{user.name}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{user.role}</p>
+            <div className="hidden min-w-0 text-left sm:block">
+              <p className="truncate text-sm font-medium leading-none">{user.name}</p>
+              <p className="truncate text-xs text-muted-foreground mt-0.5">{user.role}</p>
             </div>
-            <ChevronDown className="size-4 text-muted-foreground" />
+            <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuLabel>My account</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <Link href="/profile">
               <DropdownMenuItem className="cursor-pointer">
@@ -75,7 +72,7 @@ export function AppHeader({ title, description }: AppHeaderProps) {
                 Profile
               </DropdownMenuItem>
             </Link>
-            {user.role === "Manager" && (
+            {canManage && (
               <Link href="/settings">
                 <DropdownMenuItem className="cursor-pointer">
                   <Settings className="size-4" />
@@ -84,7 +81,10 @@ export function AppHeader({ title, description }: AppHeaderProps) {
               </Link>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10">
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
+            >
               <LogOut className="size-4" />
               Sign out
             </DropdownMenuItem>

@@ -8,11 +8,11 @@ import { RestockLedger } from "@/components/materials/restock-ledger";
 import { StockCardLedger } from "@/components/materials/stock-card-ledger";
 import { SupplierPortal } from "@/components/materials/supplier-portal";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { PageTabs } from "@/components/layout/page-tabs";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Boxes, AlertTriangle, TrendingUp } from "lucide-react";
 import { formatNumber } from "@/lib/helpers";
-import { cn } from "@/lib/utils";
 
 export default function RawMaterialsPage() {
   const { user, materials } = useManufacturing();
@@ -62,53 +62,20 @@ export default function RawMaterialsPage() {
       description="Inventory management and stock card audits"
     >
       <div className="space-y-6">
-        {/* Screen-level Tabs Selector */}
-        <div className="flex border-b border-slate-200 gap-6 mb-2 pb-0.5">
-          <button
-            onClick={() => {
-              setActiveTab("stock");
-              setShowLedger(false);
-            }}
-            className={cn(
-              "pb-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 cursor-pointer",
-              activeTab === "stock"
-                ? "border-sky-600 text-sky-600 font-extrabold"
-                : "border-transparent text-slate-400 hover:text-slate-600"
-            )}
-          >
-            Stock Directory
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab("replenishment");
-              setShowLedger(false);
-            }}
-            className={cn(
-              "pb-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 cursor-pointer",
-              activeTab === "replenishment"
-                ? "border-sky-600 text-sky-600 font-extrabold"
-                : "border-transparent text-slate-400 hover:text-slate-600"
-            )}
-          >
-            Replenishment Logs
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab("suppliers");
-              setShowLedger(false);
-            }}
-            className={cn(
-              "pb-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 cursor-pointer",
-              activeTab === "suppliers"
-                ? "border-sky-600 text-sky-600 font-extrabold"
-                : "border-transparent text-slate-400 hover:text-slate-600"
-            )}
-          >
-            Suppliers & Purchases
-          </button>
-        </div>
+        <PageTabs
+          tabs={[
+            { id: "stock", label: "Stock directory" },
+            { id: "replenishment", label: "Replenishment logs" },
+            { id: "suppliers", label: "Suppliers & purchases" },
+          ]}
+          activeTab={activeTab}
+          onChange={(id) => {
+            setActiveTab(id as "stock" | "replenishment" | "suppliers");
+            setShowLedger(false);
+          }}
+          className="mb-4"
+        />
 
-        {/* Tab Contents */}
         {activeTab === "stock" ? (
           showLedger && selectedMaterialId ? (
             <div className="animate-fadeIn">

@@ -67,7 +67,7 @@ export default function ProfilePage() {
                 <Shield className="size-4 text-muted-foreground shrink-0" />
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Access Role</p>
-                  <p className="font-semibold text-foreground truncate">Super-Administrator</p>
+                  <p className="font-semibold text-foreground truncate">{user.role}</p>
                 </div>
               </div>
 

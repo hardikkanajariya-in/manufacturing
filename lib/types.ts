@@ -1,12 +1,25 @@
 export type MaterialUnit = "Kg" | "Litre";
 
+export type UserRole = "Manager" | "Operator" | "Admin";
+
+export type PaymentStatus = "Paid" | "Pending" | "Partial";
+
+export interface PlantUnit {
+  id: string;
+  code: string;
+  name: string;
+  location: string;
+  isActive: boolean;
+}
+
 export interface RawMaterial {
   id: string;
+  unitId: string;
   name: string;
   unit: MaterialUnit;
   availableStock: number;
   minimumStock: number;
-  unitCost: number; // Cost in INR per Kg or Litre
+  unitCost: number;
 }
 
 export interface FormulaItem {
@@ -16,10 +29,12 @@ export interface FormulaItem {
 
 export interface Product {
   id: string;
+  unitId: string;
   name: string;
   description: string;
   formula: FormulaItem[];
-  sellingPrice: number; // Selling price in INR per unit
+  sellingPrice: number;
+  finishedStock: number;
 }
 
 export interface MaterialConsumption {
@@ -27,45 +42,60 @@ export interface MaterialConsumption {
   materialName: string;
   unit: MaterialUnit;
   quantity: number;
-  unitCost: number; // Cost of the material at the time of consumption
+  unitCost: number;
 }
 
 export interface ProductionRecord {
   id: string;
+  unitId: string;
   productId: string;
   productName: string;
-  quantity: number; // Successful/passed items
-  scrapQuantity: number; // Defective/damaged items
+  quantity: number;
+  scrapQuantity: number;
   qualityStatus: "Passed" | "Failed" | "Rework";
   productionDate: string;
   consumption: MaterialConsumption[];
-  materialCost: number; // Total cost of materials used (passed + scrap)
-  revenue: number; // Revenue generated only by passed items
-  profit: number; // Revenue - MaterialCost
+  materialCost: number;
+  revenue: number;
+  profit: number;
   createdAt: string;
 }
 
 export type StockStatus = "Adequate" | "Low Stock" | "Critical";
 
 export interface UserProfile {
+  id: string;
   name: string;
-  role: string;
+  role: UserRole;
   email: string;
   employeeId: string;
   shift: string;
   phone: string;
+  unitId: string;
+}
+
+export interface Employee {
+  id: string;
+  employeeId: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: UserRole;
+  shift: string;
+  unitId: string;
+  isActive: boolean;
 }
 
 export interface SystemSettings {
-  plantName: string;
-  targetDailyOutput: Record<string, number>;
   lowStockThreshold: number;
   enableEmailAlerts: boolean;
   enableSmsAlerts: boolean;
+  targetDailyOutput: Record<string, number>;
 }
 
 export interface RestockRecord {
   id: string;
+  unitId: string;
   materialId: string;
   materialName: string;
   quantity: number;
@@ -82,12 +112,29 @@ export type WorkOrderStatus = "Draft" | "Scheduled" | "In Progress" | "Completed
 
 export interface WorkOrder {
   id: string;
+  unitId: string;
   woNumber: string;
   productId: string;
   productName: string;
   targetQuantity: number;
   scheduledDate: string;
   status: WorkOrderStatus;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface SaleRecord {
+  id: string;
+  unitId: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  totalAmount: number;
+  customerName: string;
+  invoiceNumber?: string;
+  paymentStatus: PaymentStatus;
+  saleDate: string;
   notes?: string;
   createdAt: string;
 }

@@ -31,21 +31,23 @@ export function DashboardShell({
 
   if (!mounted || !isAuthenticated) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-slate-950">
-        <div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      <div className="flex h-dvh w-full items-center justify-center bg-background">
+        <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-muted/30">
-      <div className="hidden h-full lg:block">
+    <div className="flex h-dvh overflow-hidden bg-muted/40">
+      <div className="hidden h-full shrink-0 lg:block">
         <AppSidebar />
       </div>
       <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
         <AppHeader title={title} description={description} />
         <MobileNav />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
+          <div className="page-container">{children}</div>
+        </main>
       </div>
     </div>
   );
