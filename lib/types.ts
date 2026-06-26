@@ -162,7 +162,8 @@ export type MovementReason =
   | "purchase"
   | "production_consume"
   | "production_yield"
-  | "sale";
+  | "sale"
+  | "adjustment";
 
 export interface StockMovement {
   id: string;

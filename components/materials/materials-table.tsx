@@ -1,22 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { Pencil, Plus, Trash2, Search, AlertCircle } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Pencil, Plus, Trash2, Search, AlertCircle, ChevronRight } from "lucide-react";
 import { MaterialDialog } from "@/components/materials/material-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useManufacturing } from "@/context/manufacturing-context";
-import { formatNumber, getStockStatus } from "@/lib/helpers";
+import { formatCurrency, formatNumber, getStockStatus } from "@/lib/helpers";
 import type { RawMaterial } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +17,7 @@ function StatusBadge({ material }: { material: RawMaterial }) {
 
   if (status === "Critical") {
     return (
-      <Badge variant="destructive" className="animate-pulse font-bold text-[10px] tracking-wider uppercase px-2 py-0.5">
+      <Badge variant="destructive" className="text-[10px] font-medium uppercase tracking-wide">
         Critical
       </Badge>
     );
@@ -33,14 +25,14 @@ function StatusBadge({ material }: { material: RawMaterial }) {
 
   if (status === "Low Stock") {
     return (
-      <Badge className="bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-200 font-bold text-[10px] tracking-wider uppercase px-2 py-0.5">
-        Low Stock
+      <Badge className="bg-warning/15 text-warning-foreground border-warning/30 text-[10px] font-medium uppercase tracking-wide">
+        Low stock
       </Badge>
     );
   }
 
   return (
-    <Badge className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200 font-bold text-[10px] tracking-wider uppercase px-2 py-0.5">
+    <Badge className="bg-success/10 text-success border-success/20 text-[10px] font-medium uppercase tracking-wide">
       Adequate
     </Badge>
   );
@@ -55,10 +47,27 @@ export function MaterialsTable({ onSelectMaterial, selectedMaterialId }: Materia
   const { materials, deleteMaterial } = useManufacturing();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<RawMaterial | null>(null);
-
-  // Search and status filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | "Low/Critical" | "Adequate">("All");
+
+  const summary = useMemo(() => {
+    const lowCount = materials.filter((m) => {
+      const s = getStockStatus(m);
+      return s === "Critical" || s === "Low Stock";
+    }).length;
+    const totalValue = materials.reduce((sum, m) => sum + m.availableStock * m.unitCost, 0);
+    return { lowCount, totalValue };
+  }, [materials]);
+
+  const filteredMaterials = materials.filter((material) => {
+    const matchesSearch = material.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const status = getStockStatus(material);
+    const matchesStatus =
+      statusFilter === "All" ||
+      (statusFilter === "Low/Critical" && (status === "Critical" || status === "Low Stock")) ||
+      (statusFilter === "Adequate" && status === "Adequate");
+    return matchesSearch && matchesStatus;
+  });
 
   const openAdd = () => {
     setEditingMaterial(null);
@@ -70,203 +79,182 @@ export function MaterialsTable({ onSelectMaterial, selectedMaterialId }: Materia
     setDialogOpen(true);
   };
 
-  // Filter raw materials array
-  const filteredMaterials = materials.filter((material) => {
-    const matchesSearch = material.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const status = getStockStatus(material);
-    const matchesStatus =
-      statusFilter === "All" ||
-      (statusFilter === "Low/Critical" && (status === "Critical" || status === "Low Stock")) ||
-      (statusFilter === "Adequate" && status === "Adequate");
-
-    return matchesSearch && matchesStatus;
-  });
-
   return (
     <>
-      <Card className="bg-white border-slate-200 shadow-sm">
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
-          <div>
-            <CardTitle className="text-base font-extrabold text-slate-800">Raw Materials Inventory</CardTitle>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Select a material to inspect its in-depth Stock Card ledger
-            </p>
+      <Card className="border-border shadow-sm">
+        <CardHeader className="border-b border-border pb-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="text-lg font-semibold text-foreground">Raw materials</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {materials.length} materials · {formatCurrency(summary.totalValue)} on hand
+                {summary.lowCount > 0 && (
+                  <span className="text-warning-foreground"> · {summary.lowCount} need attention</span>
+                )}
+              </p>
+            </div>
+            <Button onClick={openAdd} size="sm" className="shrink-0">
+              <Plus className="size-4" />
+              Add material
+            </Button>
           </div>
-          <Button onClick={openAdd} className="sm:self-center self-start font-bold uppercase tracking-wider text-xs flex items-center gap-1.5 shadow-sm cursor-pointer">
-            <Plus className="size-4" />
-            Add Material
-          </Button>
         </CardHeader>
-        <CardContent>
-          {/* Search and Filters Bar */}
-          <div className="flex flex-col md:flex-row gap-3 mb-5">
+
+        <CardContent className="pt-4">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 size-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search raw materials by name..."
+                placeholder="Search materials…"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 bg-slate-50 border-slate-200 focus:bg-white text-xs h-10"
+                className="h-9 pl-9"
               />
             </div>
-            <div className="flex items-center gap-1.5 self-start md:self-center">
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mr-1">Filter:</span>
-              <button
-                type="button"
-                onClick={() => setStatusFilter("All")}
-                className={cn(
-                  "text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg cursor-pointer transition-colors border",
-                  statusFilter === "All"
-                    ? "bg-slate-800 text-white border-slate-800"
-                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                )}
-              >
-                All
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter("Low/Critical")}
-                className={cn(
-                  "text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg cursor-pointer transition-colors border",
-                  statusFilter === "Low/Critical"
-                    ? "bg-amber-600 text-white border-amber-600"
-                    : "bg-white text-amber-600 border-slate-200 hover:bg-amber-50"
-                )}
-              >
-                Low / Critical
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter("Adequate")}
-                className={cn(
-                  "text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg cursor-pointer transition-colors border",
-                  statusFilter === "Adequate"
-                    ? "bg-emerald-600 text-white border-emerald-600"
-                    : "bg-white text-emerald-600 border-slate-200 hover:bg-emerald-50"
-                )}
-              >
-                In Stock
-              </button>
+            <div className="flex flex-wrap gap-1.5">
+              {(
+                [
+                  ["All", "All"],
+                  ["Low/Critical", "Needs reorder"],
+                  ["Adequate", "In stock"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setStatusFilter(value)}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                    statusFilter === value
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
 
           {filteredMaterials.length === 0 ? (
-            <div className="text-center py-10 text-sm text-slate-400 border border-dashed rounded-xl">
-              No raw materials match the search or filter criteria.
+            <div className="rounded-lg border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
+              No materials match your search or filter.
             </div>
           ) : (
-            <div className="overflow-x-auto border border-slate-100 rounded-xl">
-              <Table>
-                <TableHeader className="bg-slate-50/75">
-                  <TableRow className="border-b border-slate-150">
-                    <TableHead className="font-bold text-xs text-slate-500 py-3 pl-4">Material Name</TableHead>
-                    <TableHead className="font-bold text-xs text-slate-500 py-3">Unit</TableHead>
-                    <TableHead className="font-bold text-xs text-slate-500 py-3 text-right">Available Stock</TableHead>
-                    <TableHead className="font-bold text-xs text-slate-500 py-3 min-w-32">Stock Level Gauge</TableHead>
-                    <TableHead className="font-bold text-xs text-slate-500 py-3 text-right">Minimum Stock</TableHead>
-                    <TableHead className="font-bold text-xs text-slate-500 py-3 text-right">Unit Cost</TableHead>
-                    <TableHead className="font-bold text-xs text-slate-500 py-3">Status</TableHead>
-                    <TableHead className="font-bold text-xs text-slate-500 py-3 pr-4 text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredMaterials.map((material) => {
-                    const fillPercent = Math.min(
-                      100,
-                      Math.round((material.availableStock / Math.max(1, material.minimumStock * 2.0)) * 100)
-                    );
-                    const status = getStockStatus(material);
-                    const isLow = status === "Critical" || status === "Low Stock";
-                    
-                    const barColor =
-                      status === "Critical"
-                        ? "bg-rose-500 animate-pulse"
-                        : status === "Low Stock"
-                          ? "bg-amber-500"
-                          : "bg-emerald-500";
+            <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
+              {filteredMaterials.map((material) => {
+                const status = getStockStatus(material);
+                const isLow = status === "Critical" || status === "Low Stock";
+                const fillPercent = Math.min(
+                  100,
+                  Math.round((material.availableStock / Math.max(1, material.minimumStock * 2)) * 100)
+                );
+                const stockValue = material.availableStock * material.unitCost;
+                const isSelected = selectedMaterialId === material.id;
 
-                    return (
-                      <TableRow
-                        key={material.id}
-                        className={cn(
-                          "cursor-pointer transition-all border-b border-slate-100",
-                          selectedMaterialId === material.id
-                            ? "bg-sky-50/45 border-l-4 border-sky-600 font-semibold"
-                            : isLow
-                              ? "border-l-4 border-amber-400 bg-amber-50/15 hover:bg-amber-50/25"
-                              : "border-l-4 border-transparent hover:bg-slate-50/60"
-                        )}
-                        onClick={() => onSelectMaterial(material.id)}
-                      >
-                        <TableCell className="font-semibold text-slate-700 py-3.5 pl-4">
-                          <div className="flex items-center gap-1.5">
-                            {isLow && <AlertCircle className="size-3.5 text-amber-500 shrink-0" />}
-                            {material.name}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-slate-500 py-3.5">{material.unit}</TableCell>
-                        <TableCell className="text-right font-mono font-bold text-slate-800 py-3.5 tabular-nums">
+                return (
+                  <div
+                    key={material.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onSelectMaterial(material.id)}
+                    onKeyDown={(e) => e.key === "Enter" && onSelectMaterial(material.id)}
+                    className={cn(
+                      "group flex flex-col gap-3 p-4 transition-colors cursor-pointer sm:flex-row sm:items-center sm:gap-4",
+                      isSelected ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : "hover:bg-muted/40",
+                      isLow && !isSelected && "bg-warning/5"
+                    )}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        {isLow && <AlertCircle className="size-4 shrink-0 text-warning" />}
+                        <span className="font-medium text-foreground">{material.name}</span>
+                        <span className="text-xs text-muted-foreground">{material.unit}</span>
+                      </div>
+                      <div className="mt-2 flex items-center gap-3">
+                        <div className="h-1.5 max-w-[140px] flex-1 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all",
+                              status === "Critical"
+                                ? "bg-destructive"
+                                : status === "Low Stock"
+                                  ? "bg-warning"
+                                  : "bg-success"
+                            )}
+                            style={{ width: `${fillPercent}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">
+                          Min {formatNumber(material.minimumStock)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-6 sm:gap-8">
+                      <div className="text-right">
+                        <p className="font-mono text-lg font-semibold tabular-nums text-foreground">
                           {formatNumber(material.availableStock, 1)}
-                        </TableCell>
-                        <TableCell className="w-40 py-3.5">
-                          <div className="flex flex-col gap-1">
-                            <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                              <div
-                                className={cn("h-full rounded-full transition-all duration-300", barColor)}
-                                style={{ width: `${fillPercent}%` }}
-                              />
-                            </div>
-                            <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider font-mono">
-                              {fillPercent}% of target capacity
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-slate-500 py-3.5 tabular-nums">
-                          {formatNumber(material.minimumStock)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-semibold text-slate-700 py-3.5 tabular-nums">
-                          ₹{formatNumber(material.unitCost, 2)}
-                        </TableCell>
-                        <TableCell className="py-3.5">
-                          <StatusBadge material={material} />
-                        </TableCell>
-                        <TableCell className="text-right py-3.5 pr-4" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => openEdit(material)}
-                              className="text-slate-400 hover:text-slate-700 cursor-pointer"
-                              aria-label={`Edit ${material.name}`}
-                            >
-                              <Pencil className="size-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => deleteMaterial(material.id)}
-                              className="text-slate-400 hover:text-rose-600 cursor-pointer"
-                              aria-label={`Delete ${material.name}`}
-                            >
-                              <Trash2 className="size-3.5 text-rose-500" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                        </p>
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          On hand
+                        </p>
+                      </div>
+                      <div className="hidden text-right sm:block">
+                        <p className="font-mono text-sm font-medium tabular-nums">
+                          {formatCurrency(material.unitCost, 2)}
+                        </p>
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Per {material.unit}
+                        </p>
+                      </div>
+                      <div className="hidden text-right md:block">
+                        <p className="font-mono text-sm font-semibold tabular-nums">
+                          {formatCurrency(stockValue)}
+                        </p>
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Value
+                        </p>
+                      </div>
+                      <StatusBadge material={material} />
+                      <div
+                        className="flex items-center gap-0.5"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => openEdit(material)}
+                          aria-label={`Edit ${material.name}`}
+                        >
+                          <Pencil className="size-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => deleteMaterial(material.id)}
+                          className="text-destructive hover:text-destructive"
+                          aria-label={`Delete ${material.name}`}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                        <ChevronRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hidden sm:block" />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
+
+          <p className="mt-3 text-xs text-muted-foreground">
+            Click a row to open the stock card ledger. Quantity edits from the edit dialog are logged
+            under Inventory → Raw inflow / outflow.
+          </p>
         </CardContent>
       </Card>
 
-      <MaterialDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        material={editingMaterial}
-      />
+      <MaterialDialog open={dialogOpen} onOpenChange={setDialogOpen} material={editingMaterial} />
     </>
   );
 }

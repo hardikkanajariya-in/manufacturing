@@ -97,18 +97,18 @@ export function WorkOrdersList() {
   // Pre-flight material checks for currently selected WO
   const preflightChecks = selectedWoProduct && selectedWo
     ? selectedWoProduct.formula.map((item) => {
-        const material = materials.find((m) => m.id === item.materialId);
-        const required = item.quantity * selectedWo.targetQuantity;
-        const available = material?.availableStock ?? 0;
-        const sufficient = available >= required;
-        return {
-          name: material?.name ?? "Unknown",
-          unit: material?.unit ?? "Kg",
-          required,
-          available,
-          sufficient,
-        };
-      })
+      const material = materials.find((m) => m.id === item.materialId);
+      const required = item.quantity * selectedWo.targetQuantity;
+      const available = material?.availableStock ?? 0;
+      const sufficient = available >= required;
+      return {
+        name: material?.name ?? "Unknown",
+        unit: material?.unit ?? "Kg",
+        required,
+        available,
+        sufficient,
+      };
+    })
     : [];
 
   const handleCreateWo = (e: React.FormEvent) => {
@@ -179,36 +179,30 @@ export function WorkOrdersList() {
     <div className="w-full space-y-4">
       {/* View Toggle Bar (Only show if not drill-down details mode) */}
       {!showDetails && (
-        <div className="flex justify-between items-center bg-slate-50 border border-slate-200 p-2 rounded-xl">
-          <div className="flex border border-slate-200 rounded-lg overflow-hidden bg-white p-0.5">
-            <Button
-              type="button"
-              variant={viewMode === "list" ? "secondary" : "ghost"}
-              onClick={() => setViewMode("list")}
-              className={cn(
-                "text-xs px-2.5 py-1 h-7 font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer",
-                viewMode === "list" ? "bg-slate-100 text-sky-700 shadow-xs" : "text-slate-500 hover:text-slate-800"
-              )}
-            >
-              <List className="size-3.5" />
-              List View
-            </Button>
-            <Button
-              type="button"
-              variant={viewMode === "gantt" ? "secondary" : "ghost"}
-              onClick={() => setViewMode("gantt")}
-              className={cn(
-                "text-xs px-2.5 py-1 h-7 font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer",
-                viewMode === "gantt" ? "bg-slate-100 text-sky-700 shadow-xs" : "text-slate-500 hover:text-slate-800"
-              )}
-            >
-              <Calendar className="size-3.5" />
-              Gantt Timeline
-            </Button>
-          </div>
-          <Button onClick={() => setCreateDialogOpen(true)} className="font-bold uppercase tracking-wider text-xs flex items-center gap-1.5 shadow-sm cursor-pointer h-8">
-            <Plus className="size-4" />
-            Schedule Run
+        <div className="flex border border-slate-200 rounded-lg overflow-hidden bg-white p-0.5">
+          <Button
+            type="button"
+            variant={viewMode === "list" ? "secondary" : "ghost"}
+            onClick={() => setViewMode("list")}
+            className={cn(
+              "text-xs px-2.5 py-1 h-7 font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer",
+              viewMode === "list" ? "bg-slate-100 text-sky-700 shadow-xs" : "text-slate-500 hover:text-slate-800"
+            )}
+          >
+            <List className="size-3.5" />
+            List View
+          </Button>
+          <Button
+            type="button"
+            variant={viewMode === "gantt" ? "secondary" : "ghost"}
+            onClick={() => setViewMode("gantt")}
+            className={cn(
+              "text-xs px-2.5 py-1 h-7 font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer",
+              viewMode === "gantt" ? "bg-slate-100 text-sky-700 shadow-xs" : "text-slate-500 hover:text-slate-800"
+            )}
+          >
+            <Calendar className="size-3.5" />
+            Gantt Timeline
           </Button>
         </div>
       )}

@@ -17,6 +17,7 @@ const REASON_LABELS: Record<StockMovement["reason"], string> = {
   production_consume: "Production (raw used)",
   production_yield: "Production (finished in)",
   sale: "Sale",
+  adjustment: "Manual adjustment",
 };
 
 interface StockMovementTableProps {

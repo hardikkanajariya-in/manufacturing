@@ -22,7 +22,7 @@ import {
   initialWorkOrders,
 } from "@/lib/mock-data";
 import { clearSession, persistActiveUnit, persistSession, readSession } from "@/lib/auth-storage";
-import { generateId, getTodayString } from "@/lib/helpers";
+import { formatNumber, generateId, getTodayString } from "@/lib/helpers";
 import type {
   Employee,
   FormulaItem,
@@ -318,14 +318,61 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
 
   const addMaterial = useCallback(
     (material: Omit<RawMaterial, "id" | "unitId">) => {
-      setMaterials((prev) => [...prev, { ...material, id: generateId("mat"), unitId: activeUnitId }]);
+      const id = generateId("mat");
+      setMaterials((prev) => [...prev, { ...material, id, unitId: activeUnitId }]);
+
+      if (material.availableStock > 0) {
+        appendStockMovements([
+          {
+            unitId: activeUnitId,
+            inventoryKind: "raw",
+            itemId: id,
+            itemName: material.name,
+            quantity: material.availableStock,
+            unit: material.unit,
+            direction: "in",
+            reason: "adjustment",
+            referenceLabel: "Opening stock on material registration",
+            balanceAfter: material.availableStock,
+            date: getTodayString(),
+          },
+        ]);
+      }
     },
-    [activeUnitId]
+    [activeUnitId, appendStockMovements]
   );
 
-  const updateMaterial = useCallback((id: string, material: Omit<RawMaterial, "id" | "unitId">) => {
-    setMaterials((prev) => prev.map((item) => (item.id === id ? { ...material, id, unitId: item.unitId } : item)));
-  }, []);
+  const updateMaterial = useCallback(
+    (id: string, material: Omit<RawMaterial, "id" | "unitId">) => {
+      const existing = materials.find((item) => item.id === id);
+      if (!existing) return;
+
+      const stockDelta = material.availableStock - existing.availableStock;
+
+      setMaterials((prev) =>
+        prev.map((item) => (item.id === id ? { ...material, id, unitId: item.unitId } : item))
+      );
+
+      if (stockDelta !== 0) {
+        appendStockMovements([
+          {
+            unitId: existing.unitId,
+            inventoryKind: "raw",
+            itemId: id,
+            itemName: material.name,
+            quantity: Math.abs(stockDelta),
+            unit: material.unit,
+            direction: stockDelta > 0 ? "in" : "out",
+            reason: "adjustment",
+            referenceLabel: `Manual edit (${formatNumber(existing.availableStock, 1)} → ${formatNumber(material.availableStock, 1)} ${material.unit})`,
+            balanceAfter: material.availableStock,
+            date: getTodayString(),
+          },
+        ]);
+      }
+    },
+    [materials, appendStockMovements]
+  );
 
   const deleteMaterial = useCallback((id: string) => {
     setMaterials((prev) => prev.filter((item) => item.id !== id));

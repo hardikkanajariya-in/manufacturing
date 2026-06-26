@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useManufacturing } from "@/context/manufacturing-context";
-import { OwnerSnapshot } from "@/components/dashboard/owner-snapshot";
+import { ProductionChart } from "@/components/dashboard/production-chart";
+import { MaterialConsumptionChart } from "@/components/dashboard/material-consumption-chart";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 
 export default function DashboardPage() {
@@ -21,8 +22,11 @@ export default function DashboardPage() {
   }
 
   return (
-    <DashboardShell title="Dashboard" description="Business overview at a glance">
-      <OwnerSnapshot />
+    <DashboardShell title="Dashboard" description="Production and material usage trends">
+      <div className="grid gap-6 xl:grid-cols-2">
+        <ProductionChart />
+        <MaterialConsumptionChart />
+      </div>
     </DashboardShell>
   );
 }

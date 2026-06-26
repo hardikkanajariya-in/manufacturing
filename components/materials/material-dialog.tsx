@@ -22,6 +22,7 @@ import {
 import { useManufacturing } from "@/context/manufacturing-context";
 import type { MaterialUnit, RawMaterial } from "@/lib/types";
 import { AlertCircle, Layers } from "lucide-react";
+import { formatNumber } from "@/lib/helpers";
 
 interface MaterialDialogProps {
   open: boolean;
@@ -90,10 +91,10 @@ export function MaterialDialog({
             <Layers className="size-5 text-sky-600" />
             {isEditing ? "Edit Material" : "Add New Material"}
           </DialogTitle>
-          <DialogDescription className="text-xs text-slate-400">
+          <DialogDescription className="text-xs text-muted-foreground">
             {isEditing
-              ? "Update raw material configuration details, unit costs, and inventory thresholds."
-              : "Register a new raw material in the plant inventory system."}
+              ? "Update material details. Changing available quantity creates an adjustment entry in the raw material ledger."
+              : "Register a new raw material. Opening stock is logged as an inventory adjustment."}
           </DialogDescription>
         </DialogHeader>
 
@@ -170,6 +171,23 @@ export function MaterialDialog({
               </div>
             </div>
           </div>
+
+          {isEditing && availableStock !== "" && material && Number(availableStock) !== material.availableStock && (
+            <div className="flex items-start gap-2 rounded-lg bg-muted p-3 border border-border text-[11px] text-muted-foreground">
+              <AlertCircle className="size-4 shrink-0 mt-0.5" />
+              <span>
+                Stock will change from{" "}
+                <strong className="font-mono text-foreground">
+                  {formatNumber(material.availableStock, 1)}
+                </strong>{" "}
+                to{" "}
+                <strong className="font-mono text-foreground">
+                  {formatNumber(Number(availableStock), 1)} {unit}
+                </strong>
+                . This will be recorded in the raw material transaction ledger.
+              </span>
+            </div>
+          )}
 
           {/* Dynamic Warning Alert */}
           {isLowStockWarning && (
