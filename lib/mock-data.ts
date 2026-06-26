@@ -1,4 +1,4 @@
-import type { Product, ProductionRecord, RawMaterial } from "@/lib/types";
+import type { Product, ProductionRecord, RawMaterial, RestockRecord, WorkOrder } from "@/lib/types";
 
 export const initialMaterials: RawMaterial[] = [
   {
@@ -7,6 +7,7 @@ export const initialMaterials: RawMaterial[] = [
     unit: "Kg",
     availableStock: 4850,
     minimumStock: 1000,
+    unitCost: 12.0, // ₹12 per Kg
   },
   {
     id: "mat-sand",
@@ -14,6 +15,7 @@ export const initialMaterials: RawMaterial[] = [
     unit: "Kg",
     availableStock: 7200,
     minimumStock: 2000,
+    unitCost: 2.5, // ₹2.5 per Kg
   },
   {
     id: "mat-stone-dust",
@@ -21,6 +23,7 @@ export const initialMaterials: RawMaterial[] = [
     unit: "Kg",
     availableStock: 5400,
     minimumStock: 1500,
+    unitCost: 1.8, // ₹1.8 per Kg
   },
   {
     id: "mat-fly-ash",
@@ -28,6 +31,7 @@ export const initialMaterials: RawMaterial[] = [
     unit: "Kg",
     availableStock: 680,
     minimumStock: 800,
+    unitCost: 3.5, // ₹3.5 per Kg
   },
   {
     id: "mat-water",
@@ -35,6 +39,7 @@ export const initialMaterials: RawMaterial[] = [
     unit: "Litre",
     availableStock: 9200,
     minimumStock: 2000,
+    unitCost: 0.15, // ₹0.15 per Litre
   },
 ];
 
@@ -43,6 +48,7 @@ export const initialProducts: Product[] = [
     id: "prod-paver",
     name: "Paver Blocks",
     description: "Interlocking cement pavers for pavements and driveways.",
+    sellingPrice: 18.0, // ₹18 per block
     formula: [
       { materialId: "mat-cement", quantity: 0.5 },
       { materialId: "mat-sand", quantity: 1.2 },
@@ -54,6 +60,7 @@ export const initialProducts: Product[] = [
     id: "prod-kerb",
     name: "Kerb Stones",
     description: "Precast kerb stones for road edging and landscaping.",
+    sellingPrice: 55.0, // ₹55 per stone
     formula: [
       { materialId: "mat-cement", quantity: 0.8 },
       { materialId: "mat-sand", quantity: 1.5 },
@@ -65,6 +72,7 @@ export const initialProducts: Product[] = [
     id: "prod-rcc",
     name: "RCC Pipes",
     description: "Reinforced cement concrete pipes for drainage systems.",
+    sellingPrice: 950.0, // ₹950 per pipe
     formula: [
       { materialId: "mat-cement", quantity: 2.0 },
       { materialId: "mat-sand", quantity: 3.0 },
@@ -87,13 +95,18 @@ export const initialProductionRecords: ProductionRecord[] = [
     productId: "prod-paver",
     productName: "Paver Blocks",
     quantity: 320,
+    scrapQuantity: 10,
+    qualityStatus: "Passed",
     productionDate: daysAgo(0),
     consumption: [
-      { materialId: "mat-cement", materialName: "Cement", unit: "Kg", quantity: 160 },
-      { materialId: "mat-sand", materialName: "Sand", unit: "Kg", quantity: 384 },
-      { materialId: "mat-stone-dust", materialName: "Stone Dust", unit: "Kg", quantity: 256 },
-      { materialId: "mat-water", materialName: "Water", unit: "Litre", quantity: 32 },
+      { materialId: "mat-cement", materialName: "Cement", unit: "Kg", quantity: 165, unitCost: 12.0 },
+      { materialId: "mat-sand", materialName: "Sand", unit: "Kg", quantity: 396, unitCost: 2.5 },
+      { materialId: "mat-stone-dust", materialName: "Stone Dust", unit: "Kg", quantity: 264, unitCost: 1.8 },
+      { materialId: "mat-water", materialName: "Water", unit: "Litre", quantity: 33, unitCost: 0.15 },
     ],
+    materialCost: 3450.45,
+    revenue: 5760.0,
+    profit: 2309.55,
     createdAt: new Date().toISOString(),
   },
   {
@@ -101,13 +114,18 @@ export const initialProductionRecords: ProductionRecord[] = [
     productId: "prod-kerb",
     productName: "Kerb Stones",
     quantity: 180,
+    scrapQuantity: 5,
+    qualityStatus: "Passed",
     productionDate: daysAgo(0),
     consumption: [
-      { materialId: "mat-cement", materialName: "Cement", unit: "Kg", quantity: 144 },
-      { materialId: "mat-sand", materialName: "Sand", unit: "Kg", quantity: 270 },
-      { materialId: "mat-stone-dust", materialName: "Stone Dust", unit: "Kg", quantity: 180 },
-      { materialId: "mat-water", materialName: "Water", unit: "Litre", quantity: 27 },
+      { materialId: "mat-cement", materialName: "Cement", unit: "Kg", quantity: 148, unitCost: 12.0 },
+      { materialId: "mat-sand", materialName: "Sand", unit: "Kg", quantity: 277.5, unitCost: 2.5 },
+      { materialId: "mat-stone-dust", materialName: "Stone Dust", unit: "Kg", quantity: 185, unitCost: 1.8 },
+      { materialId: "mat-water", materialName: "Water", unit: "Litre", quantity: 27.75, unitCost: 0.15 },
     ],
+    materialCost: 2806.91,
+    revenue: 9900.0,
+    profit: 7093.09,
     createdAt: new Date().toISOString(),
   },
   {
@@ -115,14 +133,19 @@ export const initialProductionRecords: ProductionRecord[] = [
     productId: "prod-rcc",
     productName: "RCC Pipes",
     quantity: 45,
+    scrapQuantity: 2,
+    qualityStatus: "Passed",
     productionDate: daysAgo(1),
     consumption: [
-      { materialId: "mat-cement", materialName: "Cement", unit: "Kg", quantity: 90 },
-      { materialId: "mat-sand", materialName: "Sand", unit: "Kg", quantity: 135 },
-      { materialId: "mat-stone-dust", materialName: "Stone Dust", unit: "Kg", quantity: 112.5 },
-      { materialId: "mat-fly-ash", materialName: "Fly Ash", unit: "Kg", quantity: 45 },
-      { materialId: "mat-water", materialName: "Water", unit: "Litre", quantity: 22.5 },
+      { materialId: "mat-cement", materialName: "Cement", unit: "Kg", quantity: 94, unitCost: 12.0 },
+      { materialId: "mat-sand", materialName: "Sand", unit: "Kg", quantity: 141, unitCost: 2.5 },
+      { materialId: "mat-stone-dust", materialName: "Stone Dust", unit: "Kg", quantity: 117.5, unitCost: 1.8 },
+      { materialId: "mat-fly-ash", materialName: "Fly Ash", unit: "Kg", quantity: 47, unitCost: 3.5 },
+      { materialId: "mat-water", materialName: "Water", unit: "Litre", quantity: 23.5, unitCost: 0.15 },
     ],
+    materialCost: 1863.53,
+    revenue: 42750.0,
+    profit: 40886.47,
     createdAt: new Date().toISOString(),
   },
   {
@@ -130,13 +153,18 @@ export const initialProductionRecords: ProductionRecord[] = [
     productId: "prod-paver",
     productName: "Paver Blocks",
     quantity: 280,
+    scrapQuantity: 15,
+    qualityStatus: "Passed",
     productionDate: daysAgo(2),
     consumption: [
-      { materialId: "mat-cement", materialName: "Cement", unit: "Kg", quantity: 140 },
-      { materialId: "mat-sand", materialName: "Sand", unit: "Kg", quantity: 336 },
-      { materialId: "mat-stone-dust", materialName: "Stone Dust", unit: "Kg", quantity: 224 },
-      { materialId: "mat-water", materialName: "Water", unit: "Litre", quantity: 28 },
+      { materialId: "mat-cement", materialName: "Cement", unit: "Kg", quantity: 147.5, unitCost: 12.0 },
+      { materialId: "mat-sand", materialName: "Sand", unit: "Kg", quantity: 354, unitCost: 2.5 },
+      { materialId: "mat-stone-dust", materialName: "Stone Dust", unit: "Kg", quantity: 236, unitCost: 1.8 },
+      { materialId: "mat-water", materialName: "Water", unit: "Litre", quantity: 29.5, unitCost: 0.15 },
     ],
+    materialCost: 3084.23,
+    revenue: 5040.0,
+    profit: 1955.77,
     createdAt: new Date().toISOString(),
   },
   {
@@ -144,42 +172,117 @@ export const initialProductionRecords: ProductionRecord[] = [
     productId: "prod-kerb",
     productName: "Kerb Stones",
     quantity: 150,
+    scrapQuantity: 8,
+    qualityStatus: "Passed",
     productionDate: daysAgo(3),
     consumption: [
-      { materialId: "mat-cement", materialName: "Cement", unit: "Kg", quantity: 120 },
-      { materialId: "mat-sand", materialName: "Sand", unit: "Kg", quantity: 225 },
-      { materialId: "mat-stone-dust", materialName: "Stone Dust", unit: "Kg", quantity: 150 },
-      { materialId: "mat-water", materialName: "Water", unit: "Litre", quantity: 22.5 },
+      { materialId: "mat-cement", materialName: "Cement", unit: "Kg", quantity: 126.4, unitCost: 12.0 },
+      { materialId: "mat-sand", materialName: "Sand", unit: "Kg", quantity: 237, unitCost: 2.5 },
+      { materialId: "mat-stone-dust", materialName: "Stone Dust", unit: "Kg", quantity: 158, unitCost: 1.8 },
+      { materialId: "mat-water", materialName: "Water", unit: "Litre", quantity: 23.7, unitCost: 0.15 },
     ],
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "prod-rec-6",
-    productId: "prod-paver",
-    productName: "Paver Blocks",
-    quantity: 400,
-    productionDate: daysAgo(5),
-    consumption: [
-      { materialId: "mat-cement", materialName: "Cement", unit: "Kg", quantity: 200 },
-      { materialId: "mat-sand", materialName: "Sand", unit: "Kg", quantity: 480 },
-      { materialId: "mat-stone-dust", materialName: "Stone Dust", unit: "Kg", quantity: 320 },
-      { materialId: "mat-water", materialName: "Water", unit: "Litre", quantity: 40 },
-    ],
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "prod-rec-7",
-    productId: "prod-rcc",
-    productName: "RCC Pipes",
-    quantity: 60,
-    productionDate: daysAgo(6),
-    consumption: [
-      { materialId: "mat-cement", materialName: "Cement", unit: "Kg", quantity: 120 },
-      { materialId: "mat-sand", materialName: "Sand", unit: "Kg", quantity: 180 },
-      { materialId: "mat-stone-dust", materialName: "Stone Dust", unit: "Kg", quantity: 150 },
-      { materialId: "mat-fly-ash", materialName: "Fly Ash", unit: "Kg", quantity: 60 },
-      { materialId: "mat-water", materialName: "Water", unit: "Litre", quantity: 30 },
-    ],
+    materialCost: 2397.26,
+    revenue: 8250.0,
+    profit: 5852.74,
     createdAt: new Date().toISOString(),
   },
 ];
+
+export const initialRestocks: RestockRecord[] = [
+  {
+    id: "rest-1",
+    materialId: "mat-cement",
+    materialName: "Cement",
+    quantity: 2000,
+    unit: "Kg",
+    unitCost: 11.5,
+    totalCost: 23000,
+    supplier: "Ultratech Cement Ltd",
+    date: daysAgo(5),
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "rest-2",
+    materialId: "mat-sand",
+    materialName: "Sand",
+    quantity: 5000,
+    unit: "Kg",
+    unitCost: 2.3,
+    totalCost: 11500,
+    supplier: "Narmada Sands Ltd",
+    date: daysAgo(4),
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "rest-3",
+    materialId: "mat-stone-dust",
+    materialName: "Stone Dust",
+    quantity: 3000,
+    unit: "Kg",
+    unitCost: 1.7,
+    totalCost: 5100,
+    supplier: "Rajasthan Crushers",
+    date: daysAgo(3),
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "rest-4",
+    materialId: "mat-fly-ash",
+    materialName: "Fly Ash",
+    quantity: 1000,
+    unit: "Kg",
+    unitCost: 3.2,
+    totalCost: 3200,
+    supplier: "NTPC Ash Division",
+    date: daysAgo(2),
+    createdAt: new Date().toISOString(),
+  },
+];
+
+export const initialWorkOrders: WorkOrder[] = [
+  {
+    id: "wo-1",
+    woNumber: "WO-20260626-001",
+    productId: "prod-paver",
+    productName: "Paver Blocks",
+    targetQuantity: 500,
+    scheduledDate: daysAgo(0),
+    status: "In Progress",
+    notes: "Run in Shift A. Check water content ratio.",
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "wo-2",
+    woNumber: "WO-20260625-002",
+    productId: "prod-kerb",
+    productName: "Kerb Stones",
+    targetQuantity: 200,
+    scheduledDate: daysAgo(1),
+    status: "Completed",
+    notes: "Standard kerb stones for Highway Project.",
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "wo-3",
+    woNumber: "WO-20260627-003",
+    productId: "prod-rcc",
+    productName: "RCC Pipes",
+    targetQuantity: 50,
+    scheduledDate: daysAgo(-1),
+    status: "Scheduled",
+    notes: "Requires fly ash check.",
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "wo-4",
+    woNumber: "WO-20260626-004",
+    productId: "prod-paver",
+    productName: "Paver Blocks",
+    targetQuantity: 300,
+    scheduledDate: daysAgo(0),
+    status: "Draft",
+    notes: "Pending site clearance.",
+    createdAt: new Date().toISOString(),
+  },
+];
+

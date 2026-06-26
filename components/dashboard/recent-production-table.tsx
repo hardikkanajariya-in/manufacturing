@@ -31,8 +31,9 @@ export function RecentProductionTable() {
             <TableRow>
               <TableHead>Date</TableHead>
               <TableHead>Product</TableHead>
-              <TableHead className="text-right">Quantity</TableHead>
-              <TableHead className="text-right">Materials Used</TableHead>
+              <TableHead className="text-right">Yield</TableHead>
+              <TableHead className="text-right">Scrap</TableHead>
+              <TableHead className="text-right">Net Profit</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -42,11 +43,14 @@ export function RecentProductionTable() {
                   {format(new Date(record.productionDate), "dd MMM yyyy")}
                 </TableCell>
                 <TableCell className="font-medium">{record.productName}</TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="text-right tabular-nums font-semibold text-emerald-600 dark:text-emerald-400">
                   {formatNumber(record.quantity)}
                 </TableCell>
-                <TableCell className="text-right text-muted-foreground">
-                  {record.consumption.length} items
+                <TableCell className="text-right tabular-nums text-destructive">
+                  {formatNumber(record.scrapQuantity || 0)}
+                </TableCell>
+                <TableCell className={`text-right tabular-nums font-bold ${record.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
+                  ₹{formatNumber(record.profit || 0, 0)}
                 </TableCell>
               </TableRow>
             ))}

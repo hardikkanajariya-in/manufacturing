@@ -44,8 +44,52 @@ export function ProductionReport() {
     total,
   }));
 
+  const financialTotals = productionRecords.reduce(
+    (acc, record) => {
+      acc.revenue += record.revenue ?? 0;
+      acc.cost += record.materialCost ?? 0;
+      acc.profit += record.profit ?? 0;
+      return acc;
+    },
+    { revenue: 0, cost: 0, profit: 0 }
+  );
+
+  const overallMargin = financialTotals.revenue > 0
+    ? (financialTotals.profit / financialTotals.revenue) * 100
+    : 0;
+
   return (
     <div className="space-y-6">
+      {/* Cost Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Revenue</p>
+            <p className="text-xl font-bold text-foreground mt-1">₹{formatNumber(financialTotals.revenue, 2)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Material Input Cost</p>
+            <p className="text-xl font-bold text-foreground mt-1">₹{formatNumber(financialTotals.cost, 2)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Net Operating Profit</p>
+            <p className="text-xl font-bold text-foreground mt-1">₹{formatNumber(financialTotals.profit, 2)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Gross Profit Margin</p>
+            <p className={`text-xl font-bold mt-1 ${overallMargin >= 30 ? "text-emerald-600 dark:text-emerald-400" : overallMargin >= 15 ? "text-amber-600 dark:text-amber-400" : "text-destructive"}`}>
+              {formatNumber(overallMargin, 1)}%
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -72,7 +116,7 @@ export function ProductionReport() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Summary</CardTitle>
+            <CardTitle className="text-base">Product Quantity Summary</CardTitle>
           </CardHeader>
           <CardContent>
             <dl className="space-y-3">
@@ -85,7 +129,7 @@ export function ProductionReport() {
                 </div>
               ))}
               <div className="flex justify-between pt-1">
-                <dt className="text-sm font-medium">Total Entries</dt>
+                <dt className="text-sm font-medium">Total Logs</dt>
                 <dd className="text-sm font-medium tabular-nums">
                   {productionRecords.length}
                 </dd>
@@ -97,7 +141,7 @@ export function ProductionReport() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Production Log</CardTitle>
+          <CardTitle className="text-base">Shop Floor Production Ledger</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -105,30 +149,37 @@ export function ProductionReport() {
               <TableRow>
                 <TableHead>Date</TableHead>
                 <TableHead>Product</TableHead>
-                <TableHead className="text-right">Quantity</TableHead>
-                <TableHead className="text-right">Cement Used</TableHead>
+                <TableHead className="text-right">Passed Yield</TableHead>
+                <TableHead className="text-right">Scrap Qty</TableHead>
+                <TableHead className="text-right">Material Cost</TableHead>
+                <TableHead className="text-right">Est. Revenue</TableHead>
+                <TableHead className="text-right">Net Profit</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {productionRecords.map((record) => {
-                const cement = record.consumption.find((c) =>
-                  c.materialName.toLowerCase().includes("cement")
-                );
-                return (
-                  <TableRow key={record.id}>
-                    <TableCell>
-                      {format(new Date(record.productionDate), "dd MMM yyyy")}
-                    </TableCell>
-                    <TableCell className="font-medium">{record.productName}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatNumber(record.quantity)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {cement ? `${formatNumber(cement.quantity, 1)} Kg` : "—"}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {productionRecords.map((record) => (
+                <TableRow key={record.id}>
+                  <TableCell>
+                    {format(new Date(record.productionDate), "dd MMM yyyy")}
+                  </TableCell>
+                  <TableCell className="font-semibold">{record.productName}</TableCell>
+                  <TableCell className="text-right tabular-nums text-emerald-600 dark:text-emerald-400">
+                    {formatNumber(record.quantity)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-destructive">
+                    {formatNumber(record.scrapQuantity || 0)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    ₹{formatNumber(record.materialCost || 0, 2)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    ₹{formatNumber(record.revenue || 0, 2)}
+                  </TableCell>
+                  <TableCell className={`text-right tabular-nums font-semibold ${record.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
+                    ₹{formatNumber(record.profit || 0, 2)}
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </CardContent>

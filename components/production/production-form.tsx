@@ -31,17 +31,21 @@ export function ProductionForm() {
   const { products, materials, submitProduction } = useManufacturing();
   const [productId, setProductId] = useState(products[0]?.id ?? "");
   const [quantity, setQuantity] = useState("");
+  const [scrapQuantity, setScrapQuantity] = useState("");
+  const [qualityStatus, setQualityStatus] = useState("Passed");
   const [productionDate, setProductionDate] = useState(getTodayString());
   const [lastRecord, setLastRecord] = useState<ProductionRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const selectedProduct = products.find((p) => p.id === productId);
 
+  const totalQtyToProduce = Number(quantity || 0) + Number(scrapQuantity || 0);
+
   const previewConsumption =
-    selectedProduct && Number(quantity) > 0
+    selectedProduct && totalQtyToProduce > 0
       ? selectedProduct.formula.map((item) => {
           const material = materials.find((m) => m.id === item.materialId);
-          const consumed = item.quantity * Number(quantity);
+          const consumed = item.quantity * totalQtyToProduce;
           const sufficient =
             material !== undefined && material.availableStock >= consumed;
           return {
@@ -62,8 +66,14 @@ export function ProductionForm() {
     setLastRecord(null);
 
     const qty = Number(quantity);
+    const scrap = Number(scrapQuantity || 0);
     if (!productId || qty <= 0) {
       setError("Please select a product and enter a valid quantity.");
+      return;
+    }
+
+    if (scrap < 0) {
+      setError("Scrap quantity cannot be negative.");
       return;
     }
 
@@ -72,7 +82,7 @@ export function ProductionForm() {
       return;
     }
 
-    const record = submitProduction(productId, qty, productionDate);
+    const record = submitProduction(productId, qty, scrap, qualityStatus as any, productionDate);
     if (!record) {
       setError("Insufficient stock for one or more raw materials.");
       return;
@@ -80,6 +90,8 @@ export function ProductionForm() {
 
     setLastRecord(record);
     setQuantity("");
+    setScrapQuantity("");
+    setQualityStatus("Passed");
   };
 
   return (
@@ -88,7 +100,7 @@ export function ProductionForm() {
         <CardHeader>
           <CardTitle className="text-base">Production Entry</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Record daily output and auto-calculate material consumption
+            Record daily output, log scrap waste, and auto-calculate costs.
           </p>
         </CardHeader>
         <CardContent>
@@ -114,7 +126,7 @@ export function ProductionForm() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="quantity">Quantity Produced</Label>
+                <Label htmlFor="quantity">Quantity Produced (Yield)</Label>
                 <Input
                   id="quantity"
                   type="number"
@@ -124,6 +136,36 @@ export function ProductionForm() {
                   placeholder="e.g. 100"
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="scrapQuantity">Scrap / Defective Quantity</Label>
+                <Input
+                  id="scrapQuantity"
+                  type="number"
+                  min="0"
+                  value={scrapQuantity}
+                  onChange={(e) => setScrapQuantity(e.target.value)}
+                  placeholder="e.g. 5"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Quality Status</Label>
+                <Select
+                  value={qualityStatus}
+                  onValueChange={(value) => value && setQualityStatus(value)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Passed">Passed (100% OK)</SelectItem>
+                    <SelectItem value="Rework">Rework Required</SelectItem>
+                    <SelectItem value="Failed">Failed (Discarded)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="production-date">Production Date</Label>
@@ -156,6 +198,7 @@ export function ProductionForm() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Consumed Materials (Preview)</CardTitle>
+              <p className="text-xs text-muted-foreground">Consuming for a total of {totalQtyToProduce} units ({quantity || 0} passed + {scrapQuantity || 0} scrap)</p>
             </CardHeader>
             <CardContent>
               <Table>
@@ -199,26 +242,53 @@ export function ProductionForm() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2 text-sm">
                 <div>
                   <p className="text-xs text-muted-foreground">Product</p>
                   <p className="font-medium">{lastRecord.productName}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Quantity</p>
-                  <p className="font-medium tabular-nums">
+                  <p className="text-xs text-muted-foreground">Good Yield</p>
+                  <p className="font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
                     {formatNumber(lastRecord.quantity)} units
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Date</p>
+                  <p className="text-xs text-muted-foreground">Scrap Quantity</p>
+                  <p className="font-medium tabular-nums text-destructive">
+                    {formatNumber(lastRecord.scrapQuantity)} units
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Quality Check</p>
+                  <Badge variant={lastRecord.qualityStatus === "Passed" ? "outline" : "destructive"}>
+                    {lastRecord.qualityStatus}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Date Logged</p>
                   <p className="font-medium">
                     {format(new Date(lastRecord.productionDate), "dd MMM yyyy")}
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Materials Deducted</p>
-                  <p className="font-medium">{lastRecord.consumption.length} items</p>
+              </div>
+
+              <hr className="border-border" />
+
+              <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1.5 border">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Est. Value (Revenue)</span>
+                  <span className="font-bold text-foreground">₹{formatNumber(lastRecord.revenue, 2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Material Input Cost</span>
+                  <span className="font-semibold text-foreground">₹{formatNumber(lastRecord.materialCost, 2)}</span>
+                </div>
+                <div className="flex justify-between pt-1.5 border-t border-border/50 font-bold">
+                  <span>Net Gross Margin</span>
+                  <span className={lastRecord.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
+                    ₹{formatNumber(lastRecord.profit, 2)}
+                  </span>
                 </div>
               </div>
 

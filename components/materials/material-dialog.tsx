@@ -40,6 +40,7 @@ export function MaterialDialog({
   const [unit, setUnit] = useState<MaterialUnit>("Kg");
   const [availableStock, setAvailableStock] = useState("");
   const [minimumStock, setMinimumStock] = useState("");
+  const [unitCost, setUnitCost] = useState("");
 
   useEffect(() => {
     if (open) {
@@ -47,6 +48,7 @@ export function MaterialDialog({
       setUnit(material?.unit ?? "Kg");
       setAvailableStock(material?.availableStock.toString() ?? "");
       setMinimumStock(material?.minimumStock.toString() ?? "");
+      setUnitCost(material?.unitCost.toString() ?? "");
     }
   }, [open, material]);
 
@@ -58,9 +60,10 @@ export function MaterialDialog({
       unit,
       availableStock: Number(availableStock),
       minimumStock: Number(minimumStock),
+      unitCost: Number(unitCost),
     };
 
-    if (!payload.name || payload.availableStock < 0 || payload.minimumStock < 0) {
+    if (!payload.name || payload.availableStock < 0 || payload.minimumStock < 0 || payload.unitCost < 0) {
       return;
     }
 
@@ -113,7 +116,7 @@ export function MaterialDialog({
             </Select>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="available-stock">Available Stock</Label>
               <Input
@@ -127,7 +130,7 @@ export function MaterialDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="minimum-stock">Minimum Stock</Label>
+              <Label htmlFor="minimum-stock">Min Stock</Label>
               <Input
                 id="minimum-stock"
                 type="number"
@@ -135,6 +138,18 @@ export function MaterialDialog({
                 step="0.1"
                 value={minimumStock}
                 onChange={(e) => setMinimumStock(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="unit-cost">Cost (₹/{unit})</Label>
+              <Input
+                id="unit-cost"
+                type="number"
+                min="0"
+                step="0.01"
+                value={unitCost}
+                onChange={(e) => setUnitCost(e.target.value)}
                 required
               />
             </div>

@@ -68,6 +68,7 @@ export function MaterialsTable() {
                 <TableHead>Unit</TableHead>
                 <TableHead className="text-right">Available Stock</TableHead>
                 <TableHead className="text-right">Minimum Stock</TableHead>
+                <TableHead className="text-right">Unit Cost</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -82,6 +83,9 @@ export function MaterialsTable() {
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatNumber(material.minimumStock)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    ₹{formatNumber(material.unitCost, 2)}
                   </TableCell>
                   <TableCell>
                     <StatusBadge material={material} />

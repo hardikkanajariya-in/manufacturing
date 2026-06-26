@@ -24,21 +24,24 @@ export function ProductDialog({ open, onOpenChange }: ProductDialogProps) {
   const { addProduct } = useManufacturing();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [sellingPrice, setSellingPrice] = useState("");
 
   useEffect(() => {
     if (open) {
       setName("");
       setDescription("");
+      setSellingPrice("");
     }
   }, [open]);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || Number(sellingPrice) < 0) return;
 
     addProduct({
       name: name.trim(),
       description: description.trim() || "Cement product for factory output.",
+      sellingPrice: Number(sellingPrice),
     });
     onOpenChange(false);
   };
@@ -49,7 +52,7 @@ export function ProductDialog({ open, onOpenChange }: ProductDialogProps) {
         <DialogHeader>
           <DialogTitle>Add Product</DialogTitle>
           <DialogDescription>
-            Create a new cement product. Define its material formula after creation.
+            Create a new cement product. Define its material formula and set its selling price.
           </DialogDescription>
         </DialogHeader>
 
@@ -73,6 +76,20 @@ export function ProductDialog({ open, onOpenChange }: ProductDialogProps) {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Brief product description"
               rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="product-price">Selling Price per Unit (₹)</Label>
+            <Input
+              id="product-price"
+              type="number"
+              min="0"
+              step="0.01"
+              value={sellingPrice}
+              onChange={(e) => setSellingPrice(e.target.value)}
+              placeholder="e.g. 18.00"
+              required
             />
           </div>
 

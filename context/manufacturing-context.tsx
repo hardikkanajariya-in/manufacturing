@@ -12,8 +12,10 @@ import {
   initialMaterials,
   initialProductionRecords,
   initialProducts,
+  initialRestocks,
+  initialWorkOrders,
 } from "@/lib/mock-data";
-import { generateId } from "@/lib/helpers";
+import { generateId, getTodayString } from "@/lib/helpers";
 import type {
   FormulaItem,
   MaterialConsumption,
@@ -22,21 +24,33 @@ import type {
   RawMaterial,
   UserProfile,
   SystemSettings,
+  RestockRecord,
+  WorkOrder,
+  WorkOrderStatus,
 } from "@/lib/types";
 
 interface ManufacturingContextValue {
   materials: RawMaterial[];
   products: Product[];
   productionRecords: ProductionRecord[];
+  restocks: RestockRecord[];
+  workOrders: WorkOrder[];
   addMaterial: (material: Omit<RawMaterial, "id">) => void;
   updateMaterial: (id: string, material: Omit<RawMaterial, "id">) => void;
   deleteMaterial: (id: string) => void;
-  addProduct: (product: Omit<Product, "id" | "formula">) => void;
+  addProduct: (product: Omit<Product, "id" | "formula" | "sellingPrice"> & { sellingPrice: number }) => void;
   updateProductFormula: (productId: string, formula: FormulaItem[]) => void;
+  updateProductPrice: (productId: string, sellingPrice: number) => void;
   deleteProduct: (id: string) => void;
+  addRestock: (restock: Omit<RestockRecord, "id" | "createdAt">) => void;
+  addWorkOrder: (workOrder: Omit<WorkOrder, "id" | "woNumber" | "createdAt">) => void;
+  updateWorkOrderStatus: (id: string, status: WorkOrderStatus) => void;
+  deleteWorkOrder: (id: string) => void;
   submitProduction: (
     productId: string,
     quantity: number,
+    scrapQuantity: number,
+    qualityStatus: "Passed" | "Failed" | "Rework",
     productionDate: string
   ) => ProductionRecord | null;
   isAuthenticated: boolean;
@@ -64,6 +78,7 @@ function calculateConsumption(
       materialName: material?.name ?? "Unknown",
       unit: material?.unit ?? "Kg",
       quantity: item.quantity * quantity,
+      unitCost: material?.unitCost ?? 0,
     };
   });
 }
@@ -95,6 +110,8 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
   const [productionRecords, setProductionRecords] = useState<ProductionRecord[]>(
     initialProductionRecords
   );
+  const [restocks, setRestocks] = useState<RestockRecord[]>(initialRestocks);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>(initialWorkOrders);
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
@@ -155,7 +172,7 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  const addProduct = useCallback((product: Omit<Product, "id" | "formula">) => {
+  const addProduct = useCallback((product: Omit<Product, "id" | "formula" | "sellingPrice"> & { sellingPrice: number }) => {
     setProducts((prev) => [
       ...prev,
       { ...product, id: generateId("prod"), formula: [] },
@@ -173,14 +190,73 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const updateProductPrice = useCallback((productId: string, sellingPrice: number) => {
+    setProducts((prev) =>
+      prev.map((product) =>
+        product.id === productId ? { ...product, sellingPrice } : product
+      )
+    );
+  }, []);
+
   const deleteProduct = useCallback((id: string) => {
     setProducts((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
+  const addRestock = useCallback((restock: Omit<RestockRecord, "id" | "createdAt">) => {
+    const newRecord: RestockRecord = {
+      ...restock,
+      id: generateId("rest"),
+      createdAt: new Date().toISOString(),
+    };
+    setRestocks((prev) => [newRecord, ...prev]);
+
+    // Update material available stock and its unitCost to match latest restock price (Weighted moving average or replacement cost)
+    setMaterials((prev) =>
+      prev.map((material) => {
+        if (material.id === restock.materialId) {
+          const totalExistingValue = material.availableStock * material.unitCost;
+          const totalNewValue = restock.quantity * restock.unitCost;
+          const totalNewStock = material.availableStock + restock.quantity;
+          const avgCost = totalNewStock > 0 ? (totalExistingValue + totalNewValue) / totalNewStock : restock.unitCost;
+          return {
+            ...material,
+            availableStock: totalNewStock,
+            unitCost: Math.round(avgCost * 100) / 100, // round to 2 decimals
+          };
+        }
+        return material;
+      })
+    );
+  }, []);
+
+  const addWorkOrder = useCallback((wo: Omit<WorkOrder, "id" | "woNumber" | "createdAt">) => {
+    const cleanDate = wo.scheduledDate.replace(/-/g, "");
+    const woNumber = `WO-${cleanDate}-${Math.floor(100 + Math.random() * 900)}`;
+    const newWo: WorkOrder = {
+      ...wo,
+      id: generateId("wo"),
+      woNumber,
+      createdAt: new Date().toISOString(),
+    };
+    setWorkOrders((prev) => [newWo, ...prev]);
+  }, []);
+
+  const updateWorkOrderStatus = useCallback((id: string, status: WorkOrderStatus) => {
+    setWorkOrders((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, status } : item))
+    );
+  }, []);
+
+  const deleteWorkOrder = useCallback((id: string) => {
+    setWorkOrders((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
   const submitProduction = useCallback(
     (
       productId: string,
       quantity: number,
+      scrapQuantity: number,
+      qualityStatus: "Passed" | "Failed" | "Rework",
       productionDate: string
     ): ProductionRecord | null => {
       const product = products.find((item) => item.id === productId);
@@ -188,7 +264,10 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
-      const consumption = calculateConsumption(product, materials, quantity);
+      // Raw materials are consumed for both passed items and scrap items
+      const totalUnitsToConsume = quantity + scrapQuantity;
+      const consumption = calculateConsumption(product, materials, totalUnitsToConsume);
+
       const insufficient = consumption.some((item) => {
         const material = materials.find((m) => m.id === item.materialId);
         return !material || material.availableStock < item.quantity;
@@ -198,13 +277,28 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
+      // Compute total material costs
+      const materialCost = consumption.reduce(
+        (sum, item) => sum + item.quantity * item.unitCost,
+        0
+      );
+
+      // Revenue is only generated by Passed/Successful units!
+      const revenue = quantity * product.sellingPrice;
+      const profit = revenue - materialCost;
+
       const record: ProductionRecord = {
         id: generateId("prod-rec"),
         productId: product.id,
         productName: product.name,
         quantity,
+        scrapQuantity,
+        qualityStatus,
         productionDate,
         consumption,
+        materialCost: Math.round(materialCost * 100) / 100,
+        revenue: Math.round(revenue * 100) / 100,
+        profit: Math.round(profit * 100) / 100,
         createdAt: new Date().toISOString(),
       };
 
@@ -230,12 +324,19 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
       materials,
       products,
       productionRecords,
+      restocks,
+      workOrders,
       addMaterial,
       updateMaterial,
       deleteMaterial,
       addProduct,
       updateProductFormula,
+      updateProductPrice,
       deleteProduct,
+      addRestock,
+      addWorkOrder,
+      updateWorkOrderStatus,
+      deleteWorkOrder,
       submitProduction,
       isAuthenticated,
       user,
@@ -249,12 +350,19 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
       materials,
       products,
       productionRecords,
+      restocks,
+      workOrders,
       addMaterial,
       updateMaterial,
       deleteMaterial,
       addProduct,
       updateProductFormula,
+      updateProductPrice,
       deleteProduct,
+      addRestock,
+      addWorkOrder,
+      updateWorkOrderStatus,
+      deleteWorkOrder,
       submitProduction,
       isAuthenticated,
       user,
