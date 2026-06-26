@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AlertCircle, Warehouse } from "lucide-react";
+import { Warehouse } from "lucide-react";
 import { useManufacturing } from "@/context/manufacturing-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -184,12 +184,7 @@ export function SaleDialog({ open, onOpenChange, onSuccess }: SaleDialogProps) {
             </div>
           )}
 
-          {error && (
-            <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive">
-              <AlertCircle className="size-4 shrink-0" />
-              {error}
-            </div>
-          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

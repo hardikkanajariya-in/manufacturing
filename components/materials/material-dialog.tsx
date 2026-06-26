@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { useManufacturing } from "@/context/manufacturing-context";
 import type { MaterialUnit, RawMaterial } from "@/lib/types";
-import { AlertCircle, Layers } from "lucide-react";
+import { Layers } from "lucide-react";
 import { formatNumber } from "@/lib/helpers";
 
 interface MaterialDialogProps {
@@ -77,11 +77,6 @@ export function MaterialDialog({
 
     onOpenChange(false);
   };
-
-  const isLowStockWarning = 
-    availableStock !== "" && 
-    minimumStock !== "" && 
-    Number(availableStock) <= Number(minimumStock);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -171,33 +166,6 @@ export function MaterialDialog({
               </div>
             </div>
           </div>
-
-          {isEditing && availableStock !== "" && material && Number(availableStock) !== material.availableStock && (
-            <div className="flex items-start gap-2 rounded-lg bg-muted p-3 border border-border text-[11px] text-muted-foreground">
-              <AlertCircle className="size-4 shrink-0 mt-0.5" />
-              <span>
-                Stock will change from{" "}
-                <strong className="font-mono text-foreground">
-                  {formatNumber(material.availableStock, 1)}
-                </strong>{" "}
-                to{" "}
-                <strong className="font-mono text-foreground">
-                  {formatNumber(Number(availableStock), 1)} {unit}
-                </strong>
-                . This will be recorded in the raw material transaction ledger.
-              </span>
-            </div>
-          )}
-
-          {/* Dynamic Warning Alert */}
-          {isLowStockWarning && (
-            <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 border border-amber-200 text-[11px] text-amber-800">
-              <AlertCircle className="size-4 shrink-0 text-amber-600 mt-0.5" />
-              <div>
-                <span className="font-bold">Stock Warning!</span> The entered available stock is below or equal to the minimum safety threshold. This material will report alert status.
-              </div>
-            </div>
-          )}
 
           <DialogFooter className="pt-2">
             <Button 

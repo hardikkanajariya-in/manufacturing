@@ -36,7 +36,6 @@ type PurchaseBill = ReturnType<typeof groupPurchaseBills>[number];
 export function PurchaseBillsPanel() {
   const { restocks } = useManufacturing();
   const [billDialogOpen, setBillDialogOpen] = useState(false);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const recentBills = useMemo(() => groupPurchaseBills(restocks), [restocks]);
 
@@ -116,11 +115,6 @@ export function PurchaseBillsPanel() {
           </Button>
         </CardHeader>
         <CardContent>
-          {successMsg && (
-            <p className="mb-4 text-xs text-success rounded-lg bg-success/10 border border-success/20 px-3 py-2">
-              {successMsg}
-            </p>
-          )}
           <DataTable
             table={billsTable}
             columns={billColumns}
@@ -131,14 +125,7 @@ export function PurchaseBillsPanel() {
         </CardContent>
       </Card>
 
-      <PurchaseBillDialog
-        open={billDialogOpen}
-        onOpenChange={setBillDialogOpen}
-        onSuccess={() => {
-          setSuccessMsg("Purchase bill logged. Stock levels updated.");
-          setTimeout(() => setSuccessMsg(null), 3000);
-        }}
-      />
+      <PurchaseBillDialog open={billDialogOpen} onOpenChange={setBillDialogOpen} />
     </>
   );
 }

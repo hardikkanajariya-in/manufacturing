@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { getNavItemsForRole } from "@/lib/navigation";
+import { getNavItemsForRole, isNavChildActive, isNavItemActive } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { useManufacturing } from "@/context/manufacturing-context";
 
@@ -11,14 +11,26 @@ export function MobileNav() {
   const { user } = useManufacturing();
   const items = getNavItemsForRole(user.role);
 
+  const mobileItems = items.flatMap((item) => {
+    if (item.children?.length) {
+      return item.children.map((child) => ({
+        href: child.href,
+        title: child.title,
+        icon: child.icon ?? item.icon,
+      }));
+    }
+    return [{ href: item.href, title: item.title, icon: item.icon }];
+  });
+
   return (
     <nav
       className="flex gap-1 overflow-x-auto border-b border-border bg-card px-2 py-2 lg:hidden scrollbar-none"
       aria-label="Main navigation"
     >
-      {items.map((item) => {
-        const isActive =
-          item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+      {mobileItems.map((item) => {
+        const isActive = item.href.startsWith("/production/schedule")
+          ? isNavChildActive(pathname, item.href)
+          : isNavItemActive(pathname, item.href);
         const NavIcon = item.icon;
 
         return (

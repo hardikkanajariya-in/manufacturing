@@ -11,7 +11,6 @@ import {
   Trash2,
   Plus,
   ArrowLeftRight,
-  Info,
 } from "lucide-react";
 import { useManufacturing } from "@/context/manufacturing-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -372,14 +371,6 @@ export function GanttScheduler() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Timeline helpful hint info banner */}
-      <div className="flex items-start gap-2 bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-500">
-        <Info className="size-4 text-sky-600 shrink-0 mt-0.5" />
-        <span>
-          <strong>Timeline tips:</strong> Hover over any date column in a product line to click the dashed <strong>+ Button</strong> to quickly insert a scheduled batch. Click on any existing card to reschedule by single days, modify metrics, or edit metadata.
-        </span>
-      </div>
 
       {/* Edit & Reschedule Dialog Modal */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

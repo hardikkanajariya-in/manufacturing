@@ -23,7 +23,6 @@ const paymentStyles: Record<PaymentStatus, string> = {
 export function SalesModule() {
   const { products, sales } = useManufacturing();
   const [saleDialogOpen, setSaleDialogOpen] = useState(false);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const totals = useMemo(() => {
     const revenue = sales.reduce((sum, s) => sum + s.totalAmount, 0);
@@ -178,11 +177,6 @@ export function SalesModule() {
           </Button>
         </CardHeader>
         <CardContent>
-          {successMsg && (
-            <p className="mb-4 text-xs text-success rounded-lg bg-success/10 border border-success/20 px-3 py-2">
-              {successMsg}
-            </p>
-          )}
           <DataTable
             table={salesTable}
             columns={salesColumns}
@@ -194,14 +188,7 @@ export function SalesModule() {
         </CardContent>
       </Card>
 
-      <SaleDialog
-        open={saleDialogOpen}
-        onOpenChange={setSaleDialogOpen}
-        onSuccess={(msg) => {
-          setSuccessMsg(msg);
-          setTimeout(() => setSuccessMsg(null), 4000);
-        }}
-      />
+      <SaleDialog open={saleDialogOpen} onOpenChange={setSaleDialogOpen} />
     </div>
   );
 }

@@ -266,11 +266,7 @@ export function PurchaseBillDialog({ open, onOpenChange, onSuccess }: PurchaseBi
             </p>
           </div>
 
-          {formError && (
-            <p className="text-xs text-destructive rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2">
-              {formError}
-            </p>
-          )}
+          {formError && <p className="text-xs text-destructive">{formError}</p>}
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

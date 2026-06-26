@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Package, AlertTriangle } from "lucide-react";
+import { Package } from "lucide-react";
 import { useManufacturing } from "@/context/manufacturing-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,16 +28,6 @@ export function FinishedGoodsWarehouse() {
 
   const totalValue = useMemo(
     () => products.reduce((sum, p) => sum + p.finishedStock * p.sellingPrice, 0),
-    [products]
-  );
-
-  const lowStockProducts = useMemo(
-    () => products.filter((p) => p.finishedStock > 0 && p.finishedStock < 50),
-    [products]
-  );
-
-  const outOfStock = useMemo(
-    () => products.filter((p) => p.finishedStock === 0),
     [products]
   );
 
@@ -147,31 +137,6 @@ export function FinishedGoodsWarehouse() {
           </CardHeader>
         </Card>
       </div>
-
-      {(lowStockProducts.length > 0 || outOfStock.length > 0) && (
-        <Card className="border-amber-200 bg-amber-50/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              Stock alerts
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {outOfStock.length > 0 && (
-              <p>
-                <span className="font-medium">{outOfStock.length} product(s)</span> have zero
-                warehouse stock — run production before selling.
-              </p>
-            )}
-            {lowStockProducts.length > 0 && (
-              <p>
-                Low stock:{" "}
-                {lowStockProducts.map((p) => `${p.name} (${p.finishedStock})`).join(", ")}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       <PageTabs
         tabs={[

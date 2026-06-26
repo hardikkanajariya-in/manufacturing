@@ -1,17 +1,13 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { appInfo, getNavItemsForRole } from "@/lib/navigation";
-import { cn } from "@/lib/utils";
+import { appInfo } from "@/lib/navigation";
+import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { useManufacturing } from "@/context/manufacturing-context";
 import { PwaInstallButton } from "@/components/pwa/pwa-install-button";
 
 export function AppSidebar() {
-  const pathname = usePathname();
   const Icon = appInfo.icon;
-  const { user, activeUnit } = useManufacturing();
-  const items = getNavItemsForRole(user.role);
+  const { activeUnit } = useManufacturing();
 
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col bg-sidebar xl:w-64">
@@ -28,32 +24,7 @@ export function AppSidebar() {
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
-        {items.map((item) => {
-          const isActive =
-            item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-          const NavIcon = item.icon;
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-2.5 rounded-[var(--radius-button)] px-3 py-2 text-sm font-medium brand-transition",
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/85 hover:bg-white/[0.08] hover:text-sidebar-foreground"
-              )}
-            >
-              <NavIcon
-                className={cn(
-                  "size-4 shrink-0 stroke-[2]",
-                  isActive ? "text-white" : "text-sidebar-icon"
-                )}
-              />
-              {item.title}
-            </Link>
-          );
-        })}
+        <SidebarNav />
       </nav>
 
       <div className="border-t border-sidebar-border p-3 space-y-1">

@@ -48,19 +48,27 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-dvh bg-background">
-      <div
-        className="hidden lg:block lg:w-1/2 relative overflow-hidden border-r border-border"
-        style={{
-          backgroundImage: "url('/cement_factory.png')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      >
-        <div className="absolute inset-0 bg-brand-navy/70" />
-        <div className="absolute bottom-8 left-8 right-8 text-white">
-          <p className="text-sm font-medium opacity-90">CementPro MES</p>
-          <h2 className="font-heading text-2xl font-bold mt-1">Manufacturing execution for precast plants</h2>
+    <div className="relative flex min-h-dvh bg-background">
+      <div className="hidden lg:block lg:w-1/2 relative overflow-hidden border-r border-border">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage: "url('/cement_factory.png')",
+          }}
+          aria-hidden
+        />
+        <div className="absolute inset-0 bg-brand-navy/55" aria-hidden />
+        <div
+          className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-brand-navy via-brand-navy/90 to-transparent"
+          aria-hidden
+        />
+        <div className="absolute bottom-0 left-0 right-0 p-8 pb-10">
+          <p className="text-sm font-semibold uppercase tracking-wider text-white/90">
+            CementPro MES
+          </p>
+          <h2 className="font-heading text-2xl font-bold leading-snug mt-2 text-white sm:text-3xl max-w-md">
+            Manufacturing execution for precast plants
+          </h2>
         </div>
       </div>
 
@@ -152,6 +160,15 @@ export default function LoginPage() {
           </Card>
         </div>
       </div>
+
+      <a
+        href="https://hardikkanajariya.in"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-4 right-4 z-10 text-[11px] text-muted-foreground/80 hover:text-foreground transition-colors"
+      >
+        created by hardikkanajariya.in
+      </a>
     </div>
   );
 }
