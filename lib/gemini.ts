@@ -11,7 +11,7 @@
 // ─── Configuration ──────────────────────────────────────────────────────────────
 
 const GEMINI_MODEL = "gemini-2.5-flash";
-const GEMINI_API_VERSION = "v1";
+const GEMINI_API_VERSION = "v1beta";
 const GEMINI_BASE_URL = `https://generativelanguage.googleapis.com/${GEMINI_API_VERSION}/models/${GEMINI_MODEL}`;
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
