@@ -12,7 +12,6 @@ import {
   Info,
   AlertTriangle,
   RefreshCw,
-  Sparkles,
 } from "lucide-react";
 import { useManufacturing } from "@/context/manufacturing-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -83,6 +82,50 @@ const SUPPLIERS: SupplierProfile[] = [
   },
 ];
 
+interface PurchaseOrderDraft {
+  poNumber: string;
+  subject: string;
+  emailBody: string;
+  deliveryCommitment: string;
+  terms: string;
+}
+
+function generatePurchaseOrder(
+  supplier: string,
+  material: string,
+  qty: number,
+  unit: string,
+  cost: number,
+  lead: number
+): PurchaseOrderDraft {
+  const randNum = Math.floor(1000 + Math.random() * 9000);
+  const poNumber = `PO-2026-${randNum}`;
+  const total = qty * cost;
+  const deliveryDate = new Date();
+  deliveryDate.setDate(deliveryDate.getDate() + lead);
+  const formattedDelivery = deliveryDate.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  const subject = `Urgent Supply Procurement Order: ${poNumber} - CementPro Factory`;
+
+  const emailBody = `Dear Sales Team at ${supplier},\n\nPlease find this formal procurement order from CementPro Factory (Unit 4) for the replenishment of our concrete production aggregates. We would like to purchase the following materials:\n\n• Material: ${material}\n• Order Quantity: ${qty} ${unit}\n• Contract Rate: ₹${cost.toFixed(2)} / ${unit}\n• Total Amount: ₹${total.toFixed(2)} INR\n\nPlease dispatch this cargo to our central receiving bay. As per our supplier agreements, we expect delivery within the ${lead}-day window (no later than ${formattedDelivery}).\n\nKindly reply to confirm receipt and provide dispatch details.\n\nSincerely,\nRajesh Sharma\nPlant Procurement Manager\nCementPro MES`;
+
+  const deliveryCommitment = `Expected on-site receiving date: ${formattedDelivery} (within ${lead} days of dispatch). Standard unloading hours apply.`;
+
+  const terms = `Payment Terms: Net 30 days invoice settlement. Receiving address: CementPro Unit 4 Warehouse, Sector 12, Industrial Area, Gujarat.`;
+
+  return {
+    poNumber,
+    subject,
+    emailBody,
+    deliveryCommitment,
+    terms,
+  };
+}
+
 export function SupplierPortal() {
   const { materials, productionRecords, addRestock } = useManufacturing();
 
@@ -90,7 +133,7 @@ export function SupplierPortal() {
   const [selectedSupplier, setSelectedSupplier] = useState<SupplierProfile | null>(null);
   const [orderQuantity, setOrderQuantity] = useState("");
   const [poLoading, setPoLoading] = useState(false);
-  const [poData, setPoData] = useState<any>(null);
+  const [poData, setPoData] = useState<PurchaseOrderDraft | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [poSuccess, setPoSuccess] = useState(false);
 
@@ -175,33 +218,26 @@ export function SupplierPortal() {
     setPoDialogOpen(true);
   };
 
-  const handleGeneratePo = async () => {
+  const handleGeneratePo = () => {
     if (!selectedSupplier || !orderQuantity) return;
     setPoLoading(true);
     setPoData(null);
 
-    const payload = {
-      supplierName: selectedSupplier.name,
-      materialName: selectedSupplier.materialName,
-      quantityNeeded: Number(orderQuantity),
-      unit: materials.find((m) => m.id === selectedSupplier.materialId)?.unit || "Kg",
-      unitCost: selectedSupplier.unitCost,
-      leadTime: selectedSupplier.leadTime,
-    };
+    const unit = materials.find((m) => m.id === selectedSupplier.materialId)?.unit || "Kg";
 
     try {
-      const res = await fetch("/api/gemini/po", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) throw new Error("Failed to contact Gemini PO endpoint.");
-      const json = await res.json();
-      setPoData(json.data);
+      const draft = generatePurchaseOrder(
+        selectedSupplier.name,
+        selectedSupplier.materialName,
+        Number(orderQuantity),
+        unit,
+        selectedSupplier.unitCost,
+        selectedSupplier.leadTime
+      );
+      setPoData(draft);
     } catch (err: any) {
       console.error(err);
-      alert(err.message || "Failed to draft AI procurement letter.");
+      alert(err.message || "Failed to draft procurement letter.");
     } finally {
       setPoLoading(false);
     }
@@ -424,7 +460,7 @@ export function SupplierPortal() {
               • <strong>Inventory Targets:</strong> CementPro targets maintaining a minimum of 10 days operating buffer in central storage silos.
             </p>
             <p>
-              • <strong>AI PO Agent:</strong> Click the "Draft restock PO" button next to any depletion card. The AI reads current inventory deficits and automatically drafts a formal email Purchase Order.
+              • <strong>PO Drafting:</strong> Click the "Draft restock PO" button next to any depletion row. The system calculates inventory deficits and generates a formal procurement letter.
             </p>
             <p>
               • <strong>Automated Booking:</strong> Confirming the generated PO instantly logs the transaction into our **Replenishment Ledger** and adds raw stock to our active inventory.
@@ -439,10 +475,10 @@ export function SupplierPortal() {
           <DialogHeader className="border-b border-slate-100 pb-3">
             <DialogTitle className="text-base font-extrabold text-slate-800 flex items-center gap-2">
               <Truck className="size-5 text-sky-600" />
-              Draft AI Restock Order: {selectedSupplier?.materialName}
+              Draft Restock Order: {selectedSupplier?.materialName}
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-400 mt-1">
-              Select replenishment quantities to prompt Gemini to compile a formal procurement letter.
+              Select replenishment quantities to generate a formal procurement letter.
             </DialogDescription>
           </DialogHeader>
 
@@ -497,7 +533,7 @@ export function SupplierPortal() {
                     ) : (
                       <>
                         <RefreshCw className="size-3.5" />
-                        Draft AI PO
+                        Draft PO
                       </>
                     )}
                   </Button>
@@ -509,13 +545,11 @@ export function SupplierPortal() {
                 )}
               </div>
 
-              {/* AI Drafted output */}
               {poData && (
                 <div className="space-y-2 border-t border-slate-100 pt-3 animate-fadeIn">
                   <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-black text-sky-700 uppercase tracking-wider flex items-center gap-1">
-                      <Sparkles className="size-3 text-sky-600 animate-pulse" />
-                      Gemini Drafted Telemetry (PO: {poData.poNumber})
+                    <span className="text-[10px] font-black text-sky-700 uppercase tracking-wider">
+                      Drafted Purchase Order ({poData.poNumber})
                     </span>
                     <button
                       type="button"

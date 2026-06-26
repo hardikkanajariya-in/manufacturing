@@ -11,7 +11,6 @@ import {
   Trash2,
   Plus,
   ArrowLeftRight,
-  Sparkles,
   Info,
 } from "lucide-react";
 import { useManufacturing } from "@/context/manufacturing-context";

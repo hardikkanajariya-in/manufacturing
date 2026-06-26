@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { AlertCircle, CheckCircle2, Mic, MicOff, Sparkles, Loader2, Check, Wand2 } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,44 +31,17 @@ import { cn } from "@/lib/utils";
 export function ProductionForm() {
   const { products, materials, submitProduction, user } = useManufacturing();
 
-  // Mode state: manual form vs. AI Assistant
-  const [entryMode, setEntryMode] = useState<"manual" | "ai">("manual");
-
-  // Manual form states
   const [productId, setProductId] = useState(products[0]?.id ?? "");
   const [quantity, setQuantity] = useState("");
   const [scrapQuantity, setScrapQuantity] = useState("");
   const [qualityStatus, setQualityStatus] = useState("Passed");
   const [productionDate, setProductionDate] = useState(getTodayString());
   const [error, setError] = useState<string | null>(null);
-
-  // AI assistant states
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [isListening, setIsListening] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [parsedResult, setParsedResult] = useState<{
-    productId: string | null;
-    quantity: number;
-    scrapQuantity: number;
-    qualityStatus: "Passed" | "Rework" | "Failed";
-    shift: string;
-  } | null>(null);
-
   const [lastRecord, setLastRecord] = useState<ProductionRecord | null>(null);
 
-  // Resolve selected product based on current mode
-  const currentProductId = entryMode === "manual" ? productId : (parsedResult?.productId ?? "");
-  const selectedProduct = products.find((p) => p.id === currentProductId);
+  const selectedProduct = products.find((p) => p.id === productId);
+  const totalQtyToProduce = Number(quantity || 0) + Number(scrapQuantity || 0);
 
-  // Resolve total quantity to produce based on current mode
-  const totalQtyToProduce = entryMode === "manual"
-    ? Number(quantity || 0) + Number(scrapQuantity || 0)
-    : parsedResult 
-      ? Number(parsedResult.quantity) + Number(parsedResult.scrapQuantity)
-      : 0;
-
-  // Calculate material consumption preview
   const previewConsumption =
     selectedProduct && totalQtyToProduce > 0
       ? selectedProduct.formula.map((item) => {
@@ -122,394 +95,115 @@ export function ProductionForm() {
     setQualityStatus("Passed");
   };
 
-  // Browser-native Speech Recognition Handler
-  const startListening = () => {
-    if (typeof window === "undefined") return;
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.");
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = "en-IN";
-
-    recognition.onstart = () => {
-      setIsListening(true);
-      setAiError(null);
-    };
-
-    recognition.onerror = (e: any) => {
-      console.error("Speech recognition error:", e);
-      setIsListening(false);
-      setAiError("Speech recognition failed. Please verify mic permissions.");
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setAiPrompt((prev) => prev ? prev + " " + transcript : transcript);
-    };
-
-    recognition.start();
-  };
-
-  // Call Next.js Gemini parser route
-  const handleAnalyzeCommand = async () => {
-    if (!aiPrompt.trim()) return;
-    setAiLoading(true);
-    setAiError(null);
-    setParsedResult(null);
-    setLastRecord(null);
-
-    try {
-      const res = await fetch("/api/gemini", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: aiPrompt, products }),
-      });
-
-      if (!res.ok) throw new Error("Connection failed. Check server status.");
-      const json = await res.json();
-
-      if (json.error) {
-        throw new Error(json.error);
-      }
-
-      setParsedResult(json.data);
-    } catch (e: any) {
-      console.error(e);
-      setAiError(e.message || "Failed to analyze floor command.");
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  // Log parsed production run to database
-  const handleConfirmAiLog = () => {
-    if (!parsedResult || !parsedResult.productId) return;
-    setAiError(null);
-
-    const record = submitProduction(
-      parsedResult.productId,
-      parsedResult.quantity,
-      parsedResult.scrapQuantity,
-      parsedResult.qualityStatus,
-      productionDate // uses selected date input
-    );
-
-    if (!record) {
-      setAiError("Insufficient raw material stock to log this AI run.");
-      return;
-    }
-
-    setLastRecord(record);
-    setParsedResult(null);
-    setAiPrompt("");
-  };
-
   return (
     <div className="grid gap-6 xl:grid-cols-2">
-      {/* Entry Panel (Manual or AI Assistant) */}
       <Card className="bg-white border-slate-200 shadow-sm">
-        <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 gap-4">
-          <div>
-            <CardTitle className="text-base font-extrabold text-slate-800">Production Entry</CardTitle>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Record yield totals, scrap waste, and audit material consumption
-            </p>
-          </div>
-          {/* Mode Switcher */}
-          <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 shrink-0">
-            <button
-              type="button"
-              onClick={() => {
-                setEntryMode("manual");
-                setLastRecord(null);
-                setParsedResult(null);
-              }}
-              className={cn(
-                "rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer",
-                entryMode === "manual"
-                  ? "bg-white text-slate-900 shadow-xs border border-slate-200/50"
-                  : "text-slate-500 hover:text-slate-900"
-              )}
-            >
-              Manual Form
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setEntryMode("ai");
-                setLastRecord(null);
-                setParsedResult(null);
-              }}
-              className={cn(
-                "rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1",
-                entryMode === "ai"
-                  ? "bg-white text-slate-900 shadow-xs border border-slate-200/50"
-                  : "text-slate-500 hover:text-slate-900"
-              )}
-            >
-              <Sparkles className="size-3 text-sky-600 animate-pulse" />
-              AI Assistant
-            </button>
-          </div>
+        <CardHeader className="pb-3 border-b border-slate-100">
+          <CardTitle className="text-base font-extrabold text-slate-800">Production Entry</CardTitle>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Record yield totals, scrap waste, and audit material consumption
+          </p>
         </CardHeader>
         <CardContent className="pt-5">
-          {entryMode === "manual" ? (
-            /* MANUAL FORM */
-            <form onSubmit={handleManualSubmit} className="space-y-4">
+          <form onSubmit={handleManualSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">Select Product</Label>
+              <Select
+                value={productId}
+                onValueChange={(value) => value && setProductId(value)}
+              >
+                <SelectTrigger className="w-full bg-slate-50 border-slate-200 text-xs h-10">
+                  <SelectValue placeholder="Choose product" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border-slate-200">
+                  {products.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-700">Select Product</Label>
+                <Label htmlFor="quantity" className="text-xs font-bold text-slate-700">Quantity Produced (Yield)</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min="1"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  placeholder="e.g. 100"
+                  className="bg-slate-50 border-slate-200 focus:bg-white text-xs h-10"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="scrapQuantity" className="text-xs font-bold text-slate-700">Scrap / Defective Quantity</Label>
+                <Input
+                  id="scrapQuantity"
+                  type="number"
+                  min="0"
+                  value={scrapQuantity}
+                  onChange={(e) => setScrapQuantity(e.target.value)}
+                  placeholder="e.g. 5"
+                  className="bg-slate-50 border-slate-200 focus:bg-white text-xs h-10"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-700">Quality Status</Label>
                 <Select
-                  value={productId}
-                  onValueChange={(value) => value && setProductId(value)}
+                  value={qualityStatus}
+                  onValueChange={(value) => value && setQualityStatus(value)}
                 >
                   <SelectTrigger className="w-full bg-slate-50 border-slate-200 text-xs h-10">
-                    <SelectValue placeholder="Choose product" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-slate-200">
-                    {products.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="Passed">Passed (100% OK)</SelectItem>
+                    <SelectItem value="Rework">Rework Required</SelectItem>
+                    <SelectItem value="Failed">Failed (Discarded)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="quantity" className="text-xs font-bold text-slate-700">Quantity Produced (Yield)</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    min="1"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    placeholder="e.g. 100"
-                    className="bg-slate-50 border-slate-200 focus:bg-white text-xs h-10"
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="scrapQuantity" className="text-xs font-bold text-slate-700">Scrap / Defective Quantity</Label>
-                  <Input
-                    id="scrapQuantity"
-                    type="number"
-                    min="0"
-                    value={scrapQuantity}
-                    onChange={(e) => setScrapQuantity(e.target.value)}
-                    placeholder="e.g. 5"
-                    className="bg-slate-50 border-slate-200 focus:bg-white text-xs h-10"
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-700">Quality Status</Label>
-                  <Select
-                    value={qualityStatus}
-                    onValueChange={(value) => value && setQualityStatus(value)}
-                  >
-                    <SelectTrigger className="w-full bg-slate-50 border-slate-200 text-xs h-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white border-slate-200">
-                      <SelectItem value="Passed">Passed (100% OK)</SelectItem>
-                      <SelectItem value="Rework">Rework Required</SelectItem>
-                      <SelectItem value="Failed">Failed (Discarded)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="production-date" className="text-xs font-bold text-slate-700">Production Date</Label>
-                  <Input
-                    id="production-date"
-                    type="date"
-                    value={productionDate}
-                    onChange={(e) => setProductionDate(e.target.value)}
-                    className="bg-slate-50 border-slate-200 focus:bg-white text-xs h-10"
-                    required
-                  />
-                </div>
-              </div>
-
-              {error && (
-                <div className="flex items-start gap-2 rounded-lg bg-rose-50 p-3 border border-rose-200 text-xs text-rose-800">
-                  <AlertCircle className="size-4 shrink-0 text-rose-600 mt-0.5" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              <Button type="submit" className="w-full font-bold uppercase tracking-wider text-xs h-10 cursor-pointer shadow-sm">
-                Submit Production Run
-              </Button>
-            </form>
-          ) : (
-            /* AI ASSISTANT VIEW */
-            <div className="space-y-4">
               <div className="space-y-1.5">
-                <div className="flex justify-between items-center">
-                  <Label className="text-xs font-bold text-slate-700">Voice or Text Operator Command</Label>
-                  {isListening && (
-                    <span className="flex items-center gap-1 text-[10px] font-black text-rose-600 uppercase tracking-widest animate-pulse">
-                      <span className="size-1.5 bg-rose-600 rounded-full" />
-                      Listening Mic...
-                    </span>
-                  )}
-                </div>
-                <div className="relative">
-                  <textarea
-                    value={aiPrompt}
-                    onChange={(e) => setAiPrompt(e.target.value)}
-                    placeholder="e.g. Logged 250 Curbs with 3 scrap, passed on evening shift today"
-                    className="w-full min-h-[100px] pr-12 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-hidden resize-none"
-                    disabled={aiLoading}
-                  />
-                  <button
-                    type="button"
-                    onClick={isListening ? () => {} : startListening}
-                    className={cn(
-                      "absolute bottom-3.5 right-3.5 size-8 rounded-lg flex items-center justify-center transition-all cursor-pointer border shadow-xs",
-                      isListening
-                        ? "bg-rose-50 text-rose-600 border-rose-200 animate-ping"
-                        : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
-                    )}
-                    title={isListening ? "Listening..." : "Dictate floor command"}
-                  >
-                    {isListening ? <MicOff className="size-4" /> : <Mic className="size-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Dynamic Production Date for AI logging */}
-              <div className="space-y-1.5">
-                <Label htmlFor="ai-production-date" className="text-xs font-bold text-slate-700">Date to Log Run</Label>
+                <Label htmlFor="production-date" className="text-xs font-bold text-slate-700">Production Date</Label>
                 <Input
-                  id="ai-production-date"
+                  id="production-date"
                   type="date"
                   value={productionDate}
                   onChange={(e) => setProductionDate(e.target.value)}
-                  className="bg-slate-50 border-slate-200 focus:bg-white text-xs h-10 w-full sm:w-1/2"
+                  className="bg-slate-50 border-slate-200 focus:bg-white text-xs h-10"
+                  required
                 />
               </div>
-
-              {aiError && (
-                <div className="flex items-start gap-2.5 rounded-lg bg-rose-50 p-3.5 border border-rose-250 text-xs text-rose-800">
-                  <AlertCircle className="size-4 shrink-0 text-rose-600 mt-0.5" />
-                  <span>{aiError}</span>
-                </div>
-              )}
-
-              <Button
-                type="button"
-                onClick={handleAnalyzeCommand}
-                disabled={aiLoading || !aiPrompt.trim()}
-                className="w-full font-bold uppercase tracking-wider text-xs h-10 cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
-              >
-                {aiLoading ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    Analyzing Floor Command...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="size-4" />
-                    Analyze & Parse Run
-                  </>
-                )}
-              </Button>
-
-              {/* AI Parser Preview Card */}
-              {parsedResult && (
-                <div className="rounded-xl border border-sky-100 bg-sky-50/25 p-4 space-y-3.5 animate-fadeIn">
-                  <div className="flex justify-between items-center border-b border-sky-100/50 pb-2">
-                    <span className="text-sky-700 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1">
-                      <Sparkles className="size-3.5" />
-                      Extracted Telemetry
-                    </span>
-                    <Badge variant="outline" className="bg-sky-50 text-sky-700 border-sky-200 text-[9px] uppercase font-bold tracking-wider">
-                      Ready
-                    </Badge>
-                  </div>
-                  
-                  {parsedResult.productId ? (
-                    <div className="grid gap-2.5 sm:grid-cols-2 text-xs">
-                      <div>
-                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px] block">Matched Product</span>
-                        <span className="text-sm font-black text-slate-800 mt-0.5 block">
-                          {products.find((p) => p.id === parsedResult.productId)?.name || "Unknown Product"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px] block">Operation Shift</span>
-                        <span className="text-sm font-black text-slate-800 mt-0.5 block">{parsedResult.shift}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px] block">Yield Yielded</span>
-                        <span className="text-sm font-black text-emerald-600 mt-0.5 block font-mono">{parsedResult.quantity} units</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px] block">Scrap Logged</span>
-                        <span className="text-sm font-black text-rose-600 mt-0.5 block font-mono">{parsedResult.scrapQuantity} units</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px] block">Quality Status</span>
-                        <Badge
-                          variant={parsedResult.qualityStatus === "Passed" ? "outline" : "destructive"}
-                          className={cn(
-                            "mt-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5",
-                            parsedResult.qualityStatus === "Passed" 
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-250"
-                              : parsedResult.qualityStatus === "Rework"
-                                ? "bg-amber-50 text-amber-700 border-amber-250"
-                                : "bg-rose-50 text-rose-700 border-rose-250"
-                          )}
-                        >
-                          {parsedResult.qualityStatus}
-                        </Badge>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-xs text-rose-600 bg-rose-50 p-2.5 rounded-lg border border-rose-200">
-                      <AlertCircle className="size-4 shrink-0" />
-                      <span>Product catalog match failed. Please specify cement blocks/slabs/curbs name in command.</span>
-                    </div>
-                  )}
-
-                  {parsedResult.productId && (
-                    <Button
-                      type="button"
-                      onClick={handleConfirmAiLog}
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 border border-emerald-700 text-white font-bold uppercase tracking-wider text-xs h-10 cursor-pointer flex items-center justify-center gap-1.5 shadow-sm mt-3"
-                    >
-                      <Check className="size-4" />
-                      Confirm & Log Production Run
-                    </Button>
-                  )}
-                </div>
-              )}
             </div>
-          )}
+
+            {error && (
+              <div className="flex items-start gap-2 rounded-lg bg-rose-50 p-3 border border-rose-200 text-xs text-rose-800">
+                <AlertCircle className="size-4 shrink-0 text-rose-600 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <Button type="submit" className="w-full font-bold uppercase tracking-wider text-xs h-10 cursor-pointer shadow-sm">
+              Submit Production Run
+            </Button>
+          </form>
         </CardContent>
       </Card>
 
-      {/* Details Panel: Consumed Preview & Success Summary */}
       <div className="space-y-6">
         {previewConsumption.length > 0 ? (
           <Card className="bg-white border-slate-200 shadow-sm animate-fadeIn">
             <CardHeader className="pb-3 border-b border-slate-100">
               <CardTitle className="text-base font-extrabold text-slate-800">Consumed Materials (Preview)</CardTitle>
               <p className="text-xs text-slate-400 mt-0.5">
-                Calculated consumption for a total of {totalQtyToProduce} units ({totalQtyToProduce - (entryMode === "manual" ? Number(scrapQuantity || 0) : (parsedResult?.scrapQuantity ?? 0))} passed + {entryMode === "manual" ? Number(scrapQuantity || 0) : (parsedResult?.scrapQuantity ?? 0)} scrap)
+                Calculated consumption for a total of {totalQtyToProduce} units ({totalQtyToProduce - Number(scrapQuantity || 0)} passed + {Number(scrapQuantity || 0)} scrap)
               </p>
             </CardHeader>
             <CardContent className="pt-4">
@@ -538,8 +232,8 @@ export function ProductionForm() {
                             variant={item.sufficient ? "outline" : "destructive"}
                             className={cn(
                               "px-2 py-0.5 text-[9px] uppercase font-bold tracking-wider",
-                              item.sufficient 
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-250" 
+                              item.sufficient
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-250"
                                 : "bg-rose-50 text-rose-700 border-rose-250 animate-pulse"
                             )}
                           >

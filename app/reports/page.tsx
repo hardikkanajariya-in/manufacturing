@@ -8,14 +8,13 @@ import { ConsumptionReport } from "@/components/reports/consumption-report";
 import { ProductionReport } from "@/components/reports/production-report";
 import { QualityReport } from "@/components/reports/quality-report";
 import { StockReport } from "@/components/reports/stock-report";
-import { AiDiagnostics } from "@/components/reports/ai-diagnostics";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { cn } from "@/lib/utils";
 
 export default function ReportsPage() {
   const { user, productionRecords, restocks } = useManufacturing();
   const router = useRouter();
-  const [activeTab, setActiveTab] = React.useState<"production" | "consumption" | "quality" | "stock" | "diagnostics">("production");
+  const [activeTab, setActiveTab] = React.useState<"production" | "consumption" | "quality" | "stock">("production");
 
   // Timeline Filter State
   const [filterMode, setFilterMode] = React.useState<"monthly" | "quarterly" | "yearly" | "custom">("monthly");
@@ -119,9 +118,7 @@ export default function ReportsPage() {
       title="Reports"
       description="Production, consumption, and inventory analytics"
     >
-      {/* FILTER TOOLBAR (Only show if not in AI Diagnostics tab to maximize workspace) */}
-      {activeTab !== "diagnostics" && (
-        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Time Filter:</span>
@@ -214,7 +211,6 @@ export default function ReportsPage() {
             </div>
           </div>
         </div>
-      )}
 
       <div className="space-y-6">
         {/* Custom Tab Selector */}
@@ -263,17 +259,6 @@ export default function ReportsPage() {
           >
             Stock Report
           </button>
-          <button
-            onClick={() => setActiveTab("diagnostics")}
-            className={cn(
-              "pb-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 cursor-pointer whitespace-nowrap",
-              activeTab === "diagnostics"
-                ? "border-sky-600 text-sky-600 font-extrabold"
-                : "border-transparent text-slate-400 hover:text-slate-600"
-            )}
-          >
-            AI Diagnostics & Handover
-          </button>
         </div>
 
         {/* Tab Contents */}
@@ -298,11 +283,6 @@ export default function ReportsPage() {
               filteredProductionRecords={filteredProductionRecords}
               filteredRestocks={filteredRestocks}
             />
-          </div>
-        )}
-        {activeTab === "diagnostics" && (
-          <div className="animate-fadeIn">
-            <AiDiagnostics />
           </div>
         )}
       </div>
