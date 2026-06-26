@@ -35,7 +35,6 @@ import type {
   SaleRecord,
   StockMovement,
   Supplier,
-  SystemSettings,
   UserProfile,
   UserRole,
   WorkOrder,
@@ -85,11 +84,9 @@ interface ManufacturingContextValue {
   recordSale: (sale: Omit<SaleRecord, "id" | "createdAt" | "unitId" | "totalAmount" | "productName">) => SaleRecord | null;
   isAuthenticated: boolean;
   user: UserProfile;
-  settings: SystemSettings;
   login: (email: string, password: string) => boolean;
   logout: () => void;
   updateUser: (profile: Partial<UserProfile>) => void;
-  updateSettings: (settings: Partial<SystemSettings>) => void;
 }
 
 const ManufacturingContext = createContext<ManufacturingContextValue | null>(null);
@@ -133,17 +130,6 @@ const operatorUser: UserProfile = {
   unitId: DEFAULT_UNIT_ID,
 };
 
-const defaultSettings: SystemSettings = {
-  targetDailyOutput: {
-    "Paver Blocks": 5000,
-    "Kerb Stones": 2000,
-    "RCC Pipes": 150,
-  },
-  lowStockThreshold: 1000,
-  enableEmailAlerts: true,
-  enableSmsAlerts: false,
-};
-
 function employeeToProfile(employee: Employee): UserProfile {
   return {
     id: employee.id,
@@ -171,7 +157,6 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<UserProfile>(defaultUser);
-  const [settings, setSettings] = useState<SystemSettings>(defaultSettings);
 
   useEffect(() => {
     const session = readSession();
@@ -296,10 +281,6 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
       return next;
     });
   }, [activeUnitId, isAuthenticated]);
-
-  const updateSettings = useCallback((newSettings: Partial<SystemSettings>) => {
-    setSettings((prev) => ({ ...prev, ...newSettings }));
-  }, []);
 
   const appendStockMovements = useCallback(
     (entries: Omit<StockMovement, "id" | "createdAt">[]) => {
@@ -699,11 +680,9 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
       recordSale,
       isAuthenticated,
       user,
-      settings,
       login,
       logout,
       updateUser,
-      updateSettings,
     }),
     [
       units,
@@ -742,11 +721,9 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
       recordSale,
       isAuthenticated,
       user,
-      settings,
       login,
       logout,
       updateUser,
-      updateSettings,
     ]
   );
 

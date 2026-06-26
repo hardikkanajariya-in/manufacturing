@@ -7,6 +7,7 @@ import {
   BarChart3,
   ShoppingBag,
   Users,
+  Building2,
   type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "@/lib/types";
@@ -26,6 +27,7 @@ export const navItems: NavItem[] = [
   { title: "Sales", href: "/sales", icon: ShoppingBag, roles: ["Manager", "Admin"] },
   { title: "Reports", href: "/reports", icon: BarChart3, roles: ["Manager", "Admin"] },
   { title: "Team", href: "/users", icon: Users, roles: ["Manager", "Admin"] },
+  { title: "Units", href: "/units", icon: Building2, roles: ["Manager", "Admin"] },
 ];
 
 export function getNavItemsForRole(role: UserRole): NavItem[] {

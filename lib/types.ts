@@ -86,13 +86,6 @@ export interface Employee {
   isActive: boolean;
 }
 
-export interface SystemSettings {
-  lowStockThreshold: number;
-  enableEmailAlerts: boolean;
-  enableSmsAlerts: boolean;
-  targetDailyOutput: Record<string, number>;
-}
-
 export interface RestockRecord {
   id: string;
   unitId: string;

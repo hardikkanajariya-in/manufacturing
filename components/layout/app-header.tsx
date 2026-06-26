@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, LogOut, Settings, User } from "lucide-react";
+import { ChevronDown, LogOut, User } from "lucide-react";
 
 interface AppHeaderProps {
   title: string;
@@ -74,14 +74,6 @@ export function AppHeader({ title, description }: AppHeaderProps) {
                 Profile
               </DropdownMenuItem>
             </Link>
-            {canManage && (
-              <Link href="/settings">
-                <DropdownMenuItem className="cursor-pointer">
-                  <Settings className="size-4 stroke-[2]" />
-                  Settings
-                </DropdownMenuItem>
-              </Link>
-            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={handleLogout}
