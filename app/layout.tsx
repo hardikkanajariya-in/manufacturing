@@ -1,23 +1,32 @@
 import type { Metadata } from "next";
-import { Poppins, Geist_Mono } from "next/font/google";
+import { Inter, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import { ManufacturingProvider } from "@/context/manufacturing-context";
 import "./globals.css";
 
-const poppins = Poppins({
-  variable: "--font-poppins",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const ibmPlexSans = IBM_Plex_Sans({
+  variable: "--font-ibm-plex-sans",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  variable: "--font-ibm-plex-mono",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: "CementPro MES | Manufacturing Management",
   description:
-    "Manufacturing execution system demo for cement products factory management.",
+    "Enterprise manufacturing execution system for cement and precast production.",
 };
 
 export default function RootLayout({
@@ -28,9 +37,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${poppins.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${ibmPlexSans.variable} ${ibmPlexMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full">
+      <body className="min-h-full font-sans">
         <ManufacturingProvider>{children}</ManufacturingProvider>
       </body>
     </html>

@@ -65,7 +65,7 @@ export function MaterialConsumptionChart() {
                   width={90}
                 />
                 <Tooltip />
-                <Bar dataKey="quantity" fill="var(--chart-2)" radius={[0, 2, 2, 0]} />
+                <Bar dataKey="quantity" fill="var(--chart-2)" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (

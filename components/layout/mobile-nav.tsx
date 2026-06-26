@@ -23,13 +23,13 @@ export function MobileNav() {
             key={item.href}
             href={item.href}
             className={cn(
-              "flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-medium sm:px-3 sm:text-xs",
+              "flex shrink-0 items-center gap-1.5 rounded-[var(--radius-button)] px-2.5 py-1.5 text-[11px] font-medium brand-transition sm:px-3 sm:text-xs",
               isActive
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
-            <NavIcon className="size-3.5 shrink-0" />
+            <NavIcon className="size-3.5 shrink-0 stroke-[2]" />
             <span className="whitespace-nowrap">{item.title}</span>
           </Link>
         );

@@ -38,7 +38,7 @@ export function DashboardShell({
   }
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-muted/40">
+    <div className="flex h-dvh overflow-hidden bg-background">
       <div className="hidden h-full shrink-0 lg:block">
         <AppSidebar />
       </div>

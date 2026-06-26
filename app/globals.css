@@ -4,103 +4,198 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ─── CementPro Brand Design System ─────────────────────────────────────────── */
+
 @theme inline {
+  /* Semantic (shadcn) */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-poppins);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --color-disabled: #cbd5e1;
+
+  /* Brand palette */
+  --color-brand-navy: #183153;
+  --color-brand-steel: #2e5b8a;
+  --color-brand-orange: #e67e22;
+  --color-concrete: #8a8f98;
+  --color-stone: #a8b0ba;
+  --color-charcoal: #3b424a;
+  --color-graphite: #5a616b;
+
+  /* Dashboard module colors */
+  --color-module-production: #2563eb;
+  --color-module-inventory: #22c55e;
+  --color-module-sales: #f97316;
+  --color-module-purchase: #8b5cf6;
+  --color-module-finance: #059669;
+  --color-module-dispatch: #14b8a6;
+  --color-module-maintenance: #f59e0b;
+  --color-module-hr: #ec4899;
+  --color-module-quality: #0ea5e9;
+  --color-module-reports: #475569;
+
+  /* Sidebar */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-icon: var(--sidebar-icon);
+
+  /* Charts */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Typography */
+  --font-sans: var(--font-inter);
+  --font-heading: var(--font-ibm-plex-sans);
+  --font-mono: var(--font-ibm-plex-mono);
+
+  /* Radius — structured, not consumer-rounded */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 12px;
+  --radius-2xl: 12px;
+  --radius-3xl: 12px;
+  --radius-4xl: 12px;
+  --radius-button: 8px;
+  --radius-card: 12px;
+  --radius-input: 8px;
+
+  /* Shadows */
+  --shadow-card: 0 2px 6px rgb(0 0 0 / 0.06);
+  --shadow-card-lg: 0 8px 20px rgb(0 0 0 / 0.08);
 }
 
-/* Industrial / concrete plant palette — warm neutrals, amber accent */
 :root {
-  --background: oklch(0.97 0.006 75);
-  --foreground: oklch(0.22 0.02 55);
-  --card: oklch(0.995 0.003 75);
-  --card-foreground: oklch(0.22 0.02 55);
-  --popover: oklch(0.995 0.003 75);
-  --popover-foreground: oklch(0.22 0.02 55);
-  --primary: oklch(0.52 0.11 55);
-  --primary-foreground: oklch(0.98 0.01 75);
-  --secondary: oklch(0.93 0.012 70);
-  --secondary-foreground: oklch(0.32 0.03 55);
-  --muted: oklch(0.94 0.008 70);
-  --muted-foreground: oklch(0.48 0.02 55);
-  --accent: oklch(0.91 0.025 65);
-  --accent-foreground: oklch(0.28 0.04 55);
-  --destructive: oklch(0.55 0.18 25);
-  --success: oklch(0.52 0.12 145);
-  --success-foreground: oklch(0.98 0.01 145);
-  --warning: oklch(0.72 0.14 75);
-  --warning-foreground: oklch(0.28 0.06 55);
-  --border: oklch(0.88 0.012 70);
-  --input: oklch(0.88 0.012 70);
-  --ring: oklch(0.52 0.11 55);
-  --chart-1: oklch(0.52 0.11 55);
-  --chart-2: oklch(0.58 0.08 145);
-  --chart-3: oklch(0.45 0.04 55);
-  --chart-4: oklch(0.68 0.12 75);
-  --chart-5: oklch(0.62 0.06 220);
-  --radius: 0.5rem;
-  --sidebar: oklch(0.24 0.025 55);
-  --sidebar-foreground: oklch(0.92 0.015 75);
-  --sidebar-primary: oklch(0.62 0.12 65);
-  --sidebar-primary-foreground: oklch(0.98 0.01 75);
-  --sidebar-accent: oklch(0.30 0.03 55);
-  --sidebar-accent-foreground: oklch(0.95 0.01 75);
-  --sidebar-border: oklch(0.32 0.025 55);
-  --sidebar-ring: oklch(0.62 0.12 65);
+  /* Primary brand */
+  --primary: #183153;
+  --primary-foreground: #ffffff;
+
+  /* Secondary — steel blue */
+  --secondary: #ffffff;
+  --secondary-foreground: #183153;
+
+  /* Surfaces */
+  --background: #f5f7fa;
+  --foreground: #1f2937;
+  --card: #ffffff;
+  --card-foreground: #1f2937;
+  --popover: #ffffff;
+  --popover-foreground: #1f2937;
+
+  /* Accent — construction orange (use sparingly) */
+  --accent: #e67e22;
+  --accent-foreground: #ffffff;
+
+  /* Status */
+  --success: #22c55e;
+  --success-foreground: #ffffff;
+  --warning: #f59e0b;
+  --warning-foreground: #1f2937;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+
+  /* Neutrals */
+  --muted: #f1f5f9;
+  --muted-foreground: #6b7280;
+  --border: #d9e2ec;
+  --input: #cbd5e1;
+  --ring: #2e5b8a;
+
+  /* Charts — data visualization */
+  --chart-1: #2563eb;
+  --chart-2: #2e5b8a;
+  --chart-3: #f97316;
+  --chart-4: #22c55e;
+  --chart-5: #14b8a6;
+
+  /* Sidebar — industrial navy */
+  --sidebar: #183153;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #2e5b8a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2e5b8a;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 0.1);
+  --sidebar-ring: #2e5b8a;
+  --sidebar-icon: #d1d5db;
+
+  /* Table */
+  --table-header: #f1f5f9;
+  --table-border: #e5e7eb;
+  --table-hover: #f8fafc;
+  --table-selected: #dbeafe;
+
+  --radius: 8px;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground antialiased;
-  }
+
   html {
     @apply font-sans scroll-smooth;
+    font-size: 16px;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "tnum" 0;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading text-foreground;
+  }
+
+  h1 {
+    @apply text-[2rem] font-bold leading-tight sm:text-5xl;
+  }
+
+  h2 {
+    @apply text-[1.75rem] font-semibold leading-tight sm:text-4xl;
+  }
+
+  h3 {
+    @apply text-[1.375rem] font-semibold leading-snug sm:text-[1.75rem];
+  }
+
+  h4 {
+    @apply text-[1.125rem] font-medium leading-snug sm:text-[1.375rem];
   }
 }
 
@@ -108,20 +203,56 @@
   .page-container {
     @apply mx-auto w-full max-w-[1600px] min-w-0;
   }
+
   .data-table-wrap {
-    @apply overflow-x-auto rounded-lg border border-border bg-card;
+    @apply overflow-x-auto rounded-sm border border-border bg-card shadow-[var(--shadow-card)];
   }
+
+  .font-data {
+    @apply font-mono tabular-nums;
+  }
+
   .kpi-label {
-    @apply text-[11px] font-semibold uppercase tracking-wide text-muted-foreground;
+    @apply text-xs font-medium text-muted-foreground;
   }
+
   .section-title {
-    @apply text-sm font-semibold text-foreground;
+    @apply font-heading text-lg font-semibold text-foreground;
   }
+
+  .card-title {
+    @apply font-heading text-lg font-semibold text-foreground;
+  }
+
+  .caption {
+    @apply text-xs font-medium text-muted-foreground;
+  }
+
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  .shadow-card-lg {
+    box-shadow: var(--shadow-card-lg);
+  }
+
+  .brand-transition {
+    transition-duration: 200ms;
+    transition-timing-function: ease-out;
+  }
+
   @keyframes fade-in {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
+
   .animate-fadeIn {
-    animation: fade-in 0.2s ease-out;
+    animation: fade-in 200ms ease-out;
   }
 }

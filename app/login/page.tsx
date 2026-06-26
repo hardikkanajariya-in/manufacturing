@@ -57,20 +57,20 @@ export default function LoginPage() {
           backgroundPosition: "center",
         }}
       >
-        <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 via-foreground/20 to-foreground/30" />
-        <div className="absolute bottom-8 left-8 right-8 text-primary-foreground">
+        <div className="absolute inset-0 bg-brand-navy/70" />
+        <div className="absolute bottom-8 left-8 right-8 text-white">
           <p className="text-sm font-medium opacity-90">CementPro MES</p>
-          <h2 className="text-2xl font-bold mt-1">Manufacturing execution for precast plants</h2>
+          <h2 className="font-heading text-2xl font-bold mt-1">Manufacturing execution for precast plants</h2>
         </div>
       </div>
 
       <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-8">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center lg:hidden">
-            <div className="inline-flex size-11 items-center justify-center rounded-lg bg-primary text-primary-foreground mb-3">
-              <Factory className="size-5" />
+            <div className="inline-flex size-11 items-center justify-center rounded-[var(--radius-button)] bg-primary text-primary-foreground mb-3">
+              <Factory className="size-5 stroke-[2]" />
             </div>
-            <h1 className="text-xl font-bold">CementPro</h1>
+            <h1 className="font-heading text-xl font-bold">CementPro</h1>
             <p className="text-xs text-muted-foreground mt-1">Manufacturing execution system</p>
           </div>
 

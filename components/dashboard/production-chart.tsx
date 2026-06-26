@@ -64,9 +64,9 @@ export function ProductionChart() {
                 <YAxis tickLine={false} axisLine={false} fontSize={12} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="Paver Blocks" fill="var(--chart-1)" radius={[2, 2, 0, 0]} />
-                <Bar dataKey="Kerb Stones" fill="var(--chart-2)" radius={[2, 2, 0, 0]} />
-                <Bar dataKey="RCC Pipes" fill="var(--chart-3)" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="Paver Blocks" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Kerb Stones" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="RCC Pipes" fill="var(--chart-3)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (

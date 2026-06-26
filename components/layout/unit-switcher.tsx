@@ -24,11 +24,11 @@ export function UnitSwitcher({ compact }: UnitSwitcherProps) {
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          "flex items-center gap-2 rounded-md border border-border bg-card text-left hover:bg-muted transition-colors cursor-pointer",
+          "flex items-center gap-2 rounded-[var(--radius-button)] border border-border bg-card text-left hover:bg-muted brand-transition cursor-pointer",
           compact ? "px-2 py-1.5 max-w-[140px] sm:max-w-[200px]" : "px-3 py-2 min-w-0 max-w-[220px]"
         )}
       >
-        <Building2 className="size-4 shrink-0 text-primary" />
+        <Building2 className="size-4 shrink-0 text-brand-steel stroke-[2]" />
         <div className="min-w-0 flex-1 hidden sm:block">
           <p className="truncate text-xs font-semibold text-foreground">{activeUnit.code}</p>
           {!compact && (
@@ -45,7 +45,7 @@ export function UnitSwitcher({ compact }: UnitSwitcherProps) {
           <DropdownMenuItem
             key={unit.id}
             onClick={() => setActiveUnit(unit.id)}
-            className={cn("cursor-pointer flex flex-col items-start gap-0.5 py-2", unit.id === activeUnitId && "bg-accent")}
+            className={cn("cursor-pointer flex flex-col items-start gap-0.5 py-2", unit.id === activeUnitId && "bg-muted")}
           >
             <span className="text-xs font-semibold">{unit.code} — {unit.name}</span>
             <span className="text-[10px] text-muted-foreground">{unit.location}</span>

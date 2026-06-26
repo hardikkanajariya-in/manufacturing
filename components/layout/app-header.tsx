@@ -41,7 +41,9 @@ export function AppHeader({ title, description }: AppHeaderProps) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 sm:px-6">
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-base font-semibold tracking-tight sm:text-lg">{title}</h1>
+        <h1 className="truncate font-heading text-base font-semibold tracking-tight sm:text-lg">
+          {title}
+        </h1>
         {description ? (
           <p className="truncate text-xs text-muted-foreground sm:text-sm">{description}</p>
         ) : null}
@@ -51,7 +53,7 @@ export function AppHeader({ title, description }: AppHeaderProps) {
         {canManage && <UnitSwitcher compact />}
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex max-w-[160px] items-center gap-2 rounded-md border border-border px-2 py-1.5 text-sm hover:bg-muted cursor-pointer sm:max-w-none">
+          <DropdownMenuTrigger className="flex max-w-[160px] items-center gap-2 rounded-[var(--radius-button)] border border-border bg-card px-2 py-1.5 text-sm hover:bg-muted brand-transition cursor-pointer sm:max-w-none">
             <Avatar className="size-7">
               <AvatarFallback className="bg-primary text-xs text-primary-foreground font-medium">
                 {initials}
@@ -61,21 +63,21 @@ export function AppHeader({ title, description }: AppHeaderProps) {
               <p className="truncate text-sm font-medium leading-none">{user.name}</p>
               <p className="truncate text-xs text-muted-foreground mt-0.5">{user.role}</p>
             </div>
-            <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+            <ChevronDown className="size-4 shrink-0 text-muted-foreground stroke-[2]" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuLabel>My account</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <Link href="/profile">
               <DropdownMenuItem className="cursor-pointer">
-                <User className="size-4" />
+                <User className="size-4 stroke-[2]" />
                 Profile
               </DropdownMenuItem>
             </Link>
             {canManage && (
               <Link href="/settings">
                 <DropdownMenuItem className="cursor-pointer">
-                  <Settings className="size-4" />
+                  <Settings className="size-4 stroke-[2]" />
                   Settings
                 </DropdownMenuItem>
               </Link>
@@ -85,7 +87,7 @@ export function AppHeader({ title, description }: AppHeaderProps) {
               onClick={handleLogout}
               className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
             >
-              <LogOut className="size-4" />
+              <LogOut className="size-4 stroke-[2]" />
               Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>

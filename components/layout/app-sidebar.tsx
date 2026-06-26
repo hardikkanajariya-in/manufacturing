@@ -13,14 +13,16 @@ export function AppSidebar() {
   const items = getNavItemsForRole(user.role);
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar xl:w-64">
+    <aside className="flex h-full w-60 shrink-0 flex-col bg-sidebar xl:w-64">
       <div className="flex h-14 items-center gap-3 border-b border-sidebar-border px-4">
-        <div className="flex size-8 items-center justify-center rounded-md bg-sidebar-accent">
-          <Icon className="size-4 text-sidebar-primary" />
+        <div className="flex size-9 items-center justify-center rounded-[var(--radius-button)] bg-brand-steel">
+          <Icon className="size-[18px] text-white stroke-[2]" />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-sidebar-foreground">{appInfo.name}</p>
-          <p className="truncate text-[11px] text-sidebar-foreground/60">{appInfo.subtitle}</p>
+          <p className="truncate font-heading text-sm font-bold text-sidebar-foreground">
+            {appInfo.name}
+          </p>
+          <p className="truncate text-[11px] text-sidebar-icon">{appInfo.subtitle}</p>
         </div>
       </div>
 
@@ -35,13 +37,18 @@ export function AppSidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-2.5 rounded-[var(--radius-button)] px-3 py-2 text-sm font-medium brand-transition",
                 isActive
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                  : "text-sidebar-foreground/85 hover:bg-white/[0.08] hover:text-sidebar-foreground"
               )}
             >
-              <NavIcon className="size-4 shrink-0 opacity-80" />
+              <NavIcon
+                className={cn(
+                  "size-4 shrink-0 stroke-[2]",
+                  isActive ? "text-white" : "text-sidebar-icon"
+                )}
+              />
               {item.title}
             </Link>
           );
@@ -49,9 +56,9 @@ export function AppSidebar() {
       </nav>
 
       <div className="border-t border-sidebar-border p-4">
-        <p className="text-[11px] font-semibold text-sidebar-primary">{activeUnit.code}</p>
-        <p className="mt-0.5 truncate text-xs text-sidebar-foreground">{activeUnit.name}</p>
-        <p className="mt-2 flex items-center gap-1.5 text-[11px] text-sidebar-foreground/70">
+        <p className="text-xs font-semibold text-sidebar-icon">{activeUnit.code}</p>
+        <p className="mt-0.5 truncate text-sm text-sidebar-foreground">{activeUnit.name}</p>
+        <p className="mt-2 flex items-center gap-1.5 text-[11px] text-sidebar-icon">
           <span className="size-1.5 rounded-full bg-success" />
           Operational
         </p>
