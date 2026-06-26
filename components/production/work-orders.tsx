@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Plus, Check, Play, Ban, Trash2, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Plus, Check, Play, Ban, Trash2, ShieldCheck, AlertTriangle, ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +35,7 @@ import {
 import { useManufacturing } from "@/context/manufacturing-context";
 import { formatNumber, getTodayString } from "@/lib/helpers";
 import type { WorkOrder, WorkOrderStatus } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 export function WorkOrdersList() {
   const {
@@ -50,6 +51,7 @@ export function WorkOrdersList() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
   const [selectedWoId, setSelectedWoId] = useState<string | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
 
   // New WO State
   const [productId, setProductId] = useState("");
@@ -172,198 +174,233 @@ export function WorkOrdersList() {
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-3">
-      {/* Left Columns: Work Orders Table */}
-      <Card className="xl:col-span-2">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-base">Production Schedule</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Schedule work orders and track their lifecycle
-            </p>
-          </div>
-          <Button onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="size-4" />
-            Schedule Run
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {workOrders.length === 0 ? (
-            <div className="text-center py-6 text-sm text-muted-foreground">
-              No scheduled work orders.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>WO Number</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead className="text-right">Target Qty</TableHead>
-                  <TableHead>Scheduled Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {workOrders.map((wo) => (
-                  <TableRow
-                    key={wo.id}
-                    className={`cursor-pointer ${selectedWoId === wo.id ? "bg-muted/50" : ""}`}
-                    onClick={() => setSelectedWoId(wo.id)}
-                  >
-                    <TableCell className="font-semibold">{wo.woNumber}</TableCell>
-                    <TableCell className="font-medium">{wo.productName}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatNumber(wo.targetQuantity)}
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(wo.scheduledDate), "dd MMM yyyy")}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={getStatusStyle(wo.status)}>
-                        {wo.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex justify-end gap-1">
-                        {wo.status === "Scheduled" && (
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => updateWorkOrderStatus(wo.id, "In Progress")}
-                            title="Start Run"
-                          >
-                            <Play className="size-4 text-amber-500" />
-                          </Button>
-                        )}
-                        {wo.status === "In Progress" && (
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => {
-                              setSelectedWoId(wo.id);
-                              setCompleteDialogOpen(true);
-                            }}
-                            title="Log Completion"
-                          >
-                            <Check className="size-4 text-emerald-500" />
-                          </Button>
-                        )}
-                        {["Scheduled", "In Progress", "Draft"].includes(wo.status) && (
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => updateWorkOrderStatus(wo.id, "Cancelled")}
-                            title="Cancel WO"
-                          >
-                            <Ban className="size-4 text-destructive" />
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => {
-                            deleteWorkOrder(wo.id);
-                            if (selectedWoId === wo.id) setSelectedWoId(null);
-                          }}
-                          title="Delete WO"
-                        >
-                          <Trash2 className="size-4 text-muted-foreground hover:text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Right Column: Pre-flight Checks & Material Availability Panel */}
-      <div className="space-y-6">
-        {selectedWo ? (
-          <Card className="border-primary/20">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-1.5">
-                <ShieldCheck className="size-4 text-primary" />
-                Pre-flight Check: {selectedWo.woNumber}
-              </CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Verification of raw inventory required to complete this batch.
-              </p>
+    <div className="w-full">
+      {showDetails && selectedWo ? (
+        /* Pre-flight Checks Drill-down Card */
+        <div className="animate-fadeIn w-full">
+          <Card className="border-slate-200 bg-white shadow-sm">
+            <CardHeader className="flex flex-row items-center gap-3 border-b border-slate-100 pb-4">
+              <button
+                onClick={() => setShowDetails(false)}
+                className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors shadow-xs cursor-pointer shrink-0"
+                aria-label="Back to schedule"
+              >
+                <ArrowLeft className="size-4" />
+              </button>
+              <div>
+                <CardTitle className="text-base font-extrabold text-slate-800 flex items-center gap-1.5">
+                  <ShieldCheck className="size-4 text-sky-600" />
+                  Pre-flight Check: {selectedWo.woNumber}
+                </CardTitle>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Verification of raw inventory required to complete this batch
+                </p>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-sm">
-                <div className="flex justify-between border-b pb-1.5 mb-2">
-                  <span className="text-muted-foreground">Product</span>
-                  <span className="font-semibold">{selectedWo.productName}</span>
+            <CardContent className="space-y-6 pt-6">
+              <div className="grid gap-4 sm:grid-cols-3 text-xs bg-slate-50 border border-slate-100 p-4 rounded-xl">
+                <div>
+                  <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px] block">Product</span>
+                  <span className="text-sm font-black text-slate-800 mt-0.5 block">{selectedWo.productName}</span>
                 </div>
-                <div className="flex justify-between border-b pb-1.5 mb-2">
-                  <span className="text-muted-foreground">Target Batch</span>
-                  <span className="font-semibold">{selectedWo.targetQuantity} units</span>
+                <div>
+                  <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px] block">Target Quantity</span>
+                  <span className="text-sm font-black text-slate-800 mt-0.5 block">{selectedWo.targetQuantity} units</span>
                 </div>
-                {selectedWo.notes && (
-                  <div className="bg-muted/40 p-2 rounded text-xs text-muted-foreground italic border">
-                    {selectedWo.notes}
-                  </div>
-                )}
+                <div>
+                  <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px] block">Status</span>
+                  <Badge variant="outline" className={`mt-0.5 inline-block ${getStatusStyle(selectedWo.status)}`}>
+                    {selectedWo.status}
+                  </Badge>
+                </div>
               </div>
 
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="px-1 text-xs">Material</TableHead>
-                    <TableHead className="px-1 text-xs text-right">Required</TableHead>
-                    <TableHead className="px-1 text-xs text-right">In Stock</TableHead>
-                    <TableHead className="px-1 text-xs text-right">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {preflightChecks.map((item) => (
-                    <TableRow key={item.name} className="h-9">
-                      <TableCell className="px-1 text-xs font-medium">{item.name}</TableCell>
-                      <TableCell className="px-1 text-xs text-right tabular-nums">
-                        {formatNumber(item.required, 0)} {item.unit}
-                      </TableCell>
-                      <TableCell className="px-1 text-xs text-right tabular-nums text-muted-foreground">
-                        {formatNumber(item.available, 0)}
-                      </TableCell>
-                      <TableCell className="px-1 text-xs text-right">
-                        <Badge
-                          variant={item.sufficient ? "outline" : "destructive"}
-                          className="px-1 py-0 text-[10px] uppercase font-bold"
-                        >
-                          {item.sufficient ? "OK" : "Low"}
-                        </Badge>
-                      </TableCell>
+              {selectedWo.notes && (
+                <div className="bg-slate-50 p-3 rounded-lg text-xs text-slate-500 italic border border-slate-150">
+                  <span className="font-bold uppercase tracking-wider text-[9px] block text-slate-400 not-italic mb-1">Notes</span>
+                  "{selectedWo.notes}"
+                </div>
+              )}
+
+              <div className="border border-slate-100 rounded-xl overflow-hidden">
+                <Table>
+                  <TableHeader className="bg-slate-50/75">
+                    <TableRow className="border-b border-slate-150">
+                      <TableHead className="font-bold text-xs text-slate-500 py-3 pl-4">Material</TableHead>
+                      <TableHead className="font-bold text-xs text-slate-500 py-3 text-right">Required</TableHead>
+                      <TableHead className="font-bold text-xs text-slate-500 py-3 text-right">In Stock</TableHead>
+                      <TableHead className="font-bold text-xs text-slate-500 py-3 pr-4 text-right">Status</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {preflightChecks.map((item) => (
+                      <TableRow key={item.name} className="border-b border-slate-100 h-11 hover:bg-slate-50/40">
+                        <TableCell className="font-medium text-slate-700 py-3 pl-4 text-xs">{item.name}</TableCell>
+                        <TableCell className="text-right font-mono font-bold text-slate-850 py-3 text-xs tabular-nums">
+                          {formatNumber(item.required, 0)} {item.unit}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-slate-400 py-3 text-xs tabular-nums">
+                          {formatNumber(item.available, 0)}
+                        </TableCell>
+                        <TableCell className="text-right py-3 pr-4">
+                          <Badge
+                            variant={item.sufficient ? "outline" : "destructive"}
+                            className={cn(
+                              "px-2 py-0.5 text-[9px] uppercase font-bold tracking-wider",
+                              item.sufficient ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200 animate-pulse"
+                            )}
+                          >
+                            {item.sufficient ? "Sufficient" : "Low Stock"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
               {preflightChecks.some((c) => !c.sufficient) ? (
-                <div className="flex items-center gap-2 rounded-lg bg-destructive/5 border border-destructive/20 p-2.5 text-xs text-destructive">
-                  <AlertTriangle className="size-4 shrink-0" />
-                  <span>Insufficient raw materials. Log a restocking ledger item to start production.</span>
+                <div className="flex items-start gap-2.5 rounded-xl bg-rose-50/50 border border-rose-200 p-4 text-xs text-rose-800">
+                  <AlertTriangle className="size-4 shrink-0 text-rose-600 mt-0.5 animate-bounce" />
+                  <div>
+                    <span className="font-bold block">Insufficient Materials Stock!</span>
+                    Please record a material restock in the ledger to fulfill this work order run.
+                  </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20 p-2.5 text-xs text-emerald-600 dark:text-emerald-400">
-                  <ShieldCheck className="size-4 shrink-0" />
-                  <span>All materials verified. Ready for floor execution.</span>
+                <div className="flex items-start gap-2.5 rounded-xl bg-emerald-50 border border-emerald-250 p-4 text-xs text-emerald-800">
+                  <ShieldCheck className="size-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <div>
+                    <span className="font-bold block">Ready for Execution!</span>
+                    All material limits are verified in storage. You can safely initiate the production run.
+                  </div>
                 </div>
               )}
             </CardContent>
           </Card>
-        ) : (
-          <Card className="bg-muted/10 border-dashed border-2">
-            <CardContent className="py-12 text-center text-sm text-muted-foreground flex flex-col items-center justify-center gap-2">
-              <ShieldCheck className="size-8 text-muted-foreground/45" />
-              <span>Select a work order row to perform pre-flight stock verification check.</span>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+        </div>
+      ) : (
+        /* Work Orders List Table (Full-Width) */
+        <Card className="w-full bg-white border-slate-200 shadow-sm animate-fadeIn">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
+            <div>
+              <CardTitle className="text-base font-extrabold text-slate-800">Production Schedule</CardTitle>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Schedule work orders and track their lifecycle
+              </p>
+            </div>
+            <Button onClick={() => setCreateDialogOpen(true)} className="sm:self-center self-start font-bold uppercase tracking-wider text-xs flex items-center gap-1.5 shadow-sm cursor-pointer">
+              <Plus className="size-4" />
+              Schedule Run
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {workOrders.length === 0 ? (
+              <div className="text-center py-10 text-sm text-slate-400 border border-dashed rounded-xl">
+                No scheduled work orders found.
+              </div>
+            ) : (
+              <div className="overflow-x-auto border border-slate-100 rounded-xl">
+                <Table>
+                  <TableHeader className="bg-slate-50/75">
+                    <TableRow className="border-b border-slate-150">
+                      <TableHead className="font-bold text-xs text-slate-500 py-3 pl-4">WO Number</TableHead>
+                      <TableHead className="font-bold text-xs text-slate-500 py-3">Product</TableHead>
+                      <TableHead className="font-bold text-xs text-slate-500 py-3 text-right">Target Qty</TableHead>
+                      <TableHead className="font-bold text-xs text-slate-500 py-3">Scheduled Date</TableHead>
+                      <TableHead className="font-bold text-xs text-slate-500 py-3">Status</TableHead>
+                      <TableHead className="font-bold text-xs text-slate-500 py-3 pr-4 text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {workOrders.map((wo) => (
+                      <TableRow
+                        key={wo.id}
+                        className={cn(
+                          "cursor-pointer transition-all border-b border-slate-100",
+                          selectedWoId === wo.id
+                            ? "bg-sky-50/45 border-l-4 border-sky-600 font-semibold"
+                            : "border-l-4 border-transparent hover:bg-slate-50/60"
+                        )}
+                        onClick={() => {
+                          setSelectedWoId(wo.id);
+                          setShowDetails(true);
+                        }}
+                      >
+                        <TableCell className="font-semibold text-slate-700 py-3.5 pl-4 text-xs">{wo.woNumber}</TableCell>
+                        <TableCell className="font-medium text-slate-700 py-3.5 text-xs">{wo.productName}</TableCell>
+                        <TableCell className="text-right font-mono font-bold text-slate-800 py-3.5 text-xs tabular-nums">
+                          {formatNumber(wo.targetQuantity)}
+                        </TableCell>
+                        <TableCell className="text-slate-500 py-3.5 text-xs">
+                          {format(new Date(wo.scheduledDate), "dd MMM yyyy")}
+                        </TableCell>
+                        <TableCell className="py-3.5">
+                          <Badge variant="outline" className={cn("text-[9px] uppercase font-bold px-2 py-0.5 tracking-wider", getStatusStyle(wo.status))}>
+                            {wo.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right py-3.5 pr-4" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex justify-end gap-1">
+                            {wo.status === "Scheduled" && (
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => updateWorkOrderStatus(wo.id, "In Progress")}
+                                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                                title="Start Run"
+                              >
+                                <Play className="size-3.5 text-amber-500" />
+                              </Button>
+                            )}
+                            {wo.status === "In Progress" && (
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => {
+                                  setSelectedWoId(wo.id);
+                                  setCompleteDialogOpen(true);
+                                }}
+                                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                                title="Log Completion"
+                              >
+                                <Check className="size-3.5 text-emerald-500" />
+                              </Button>
+                            )}
+                            {["Scheduled", "In Progress", "Draft"].includes(wo.status) && (
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => updateWorkOrderStatus(wo.id, "Cancelled")}
+                                className="text-slate-400 hover:text-rose-600 cursor-pointer"
+                                title="Cancel WO"
+                              >
+                                <Ban className="size-3.5 text-rose-500" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => {
+                                deleteWorkOrder(wo.id);
+                                if (selectedWoId === wo.id) setSelectedWoId(null);
+                              }}
+                              className="text-slate-400 hover:text-rose-600 cursor-pointer"
+                              title="Delete WO"
+                            >
+                              <Trash2 className="size-3.5 text-rose-500" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* dialog to schedule run */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>

@@ -9,12 +9,12 @@ import { ProductionReport } from "@/components/reports/production-report";
 import { QualityReport } from "@/components/reports/quality-report";
 import { StockReport } from "@/components/reports/stock-report";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
 export default function ReportsPage() {
   const { user, productionRecords, restocks } = useManufacturing();
   const router = useRouter();
-  const [activeTab, setActiveTab] = React.useState("production");
+  const [activeTab, setActiveTab] = React.useState<"production" | "consumption" | "quality" | "stock">("production");
 
   // Timeline Filter State
   const [filterMode, setFilterMode] = React.useState<"monthly" | "quarterly" | "yearly" | "custom">("monthly");
@@ -213,35 +213,80 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="production">
-        <TabsList>
-          <TabsTrigger value="production">Production & Finance</TabsTrigger>
-          <TabsTrigger value="consumption">Material Consumption</TabsTrigger>
-          <TabsTrigger value="quality">Quality Control</TabsTrigger>
-          <TabsTrigger value="stock">Stock Report</TabsTrigger>
-        </TabsList>
+      <div className="space-y-6">
+        {/* Custom Tab Selector */}
+        <div className="flex border-b border-slate-200 gap-6 mb-2 pb-0.5">
+          <button
+            onClick={() => setActiveTab("production")}
+            className={cn(
+              "pb-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 cursor-pointer",
+              activeTab === "production"
+                ? "border-sky-600 text-sky-600 font-extrabold"
+                : "border-transparent text-slate-400 hover:text-slate-600"
+            )}
+          >
+            Production & Finance
+          </button>
+          <button
+            onClick={() => setActiveTab("consumption")}
+            className={cn(
+              "pb-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 cursor-pointer",
+              activeTab === "consumption"
+                ? "border-sky-600 text-sky-600 font-extrabold"
+                : "border-transparent text-slate-400 hover:text-slate-600"
+            )}
+          >
+            Material Consumption
+          </button>
+          <button
+            onClick={() => setActiveTab("quality")}
+            className={cn(
+              "pb-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 cursor-pointer",
+              activeTab === "quality"
+                ? "border-sky-600 text-sky-600 font-extrabold"
+                : "border-transparent text-slate-400 hover:text-slate-600"
+            )}
+          >
+            Quality Control
+          </button>
+          <button
+            onClick={() => setActiveTab("stock")}
+            className={cn(
+              "pb-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 cursor-pointer",
+              activeTab === "stock"
+                ? "border-sky-600 text-sky-600 font-extrabold"
+                : "border-transparent text-slate-400 hover:text-slate-600"
+            )}
+          >
+            Stock Report
+          </button>
+        </div>
 
-        <TabsContent value="production" className="mt-6">
-          {activeTab === "production" && <ProductionReport filteredRecords={filteredProductionRecords} />}
-        </TabsContent>
-
-        <TabsContent value="consumption" className="mt-6">
-          {activeTab === "consumption" && <ConsumptionReport filteredRecords={filteredProductionRecords} />}
-        </TabsContent>
-
-        <TabsContent value="quality" className="mt-6">
-          {activeTab === "quality" && <QualityReport filteredRecords={filteredProductionRecords} />}
-        </TabsContent>
-
-        <TabsContent value="stock" className="mt-6">
-          {activeTab === "stock" && (
+        {/* Tab Contents */}
+        {activeTab === "production" && (
+          <div className="animate-fadeIn">
+            <ProductionReport filteredRecords={filteredProductionRecords} />
+          </div>
+        )}
+        {activeTab === "consumption" && (
+          <div className="animate-fadeIn">
+            <ConsumptionReport filteredRecords={filteredProductionRecords} />
+          </div>
+        )}
+        {activeTab === "quality" && (
+          <div className="animate-fadeIn">
+            <QualityReport filteredRecords={filteredProductionRecords} />
+          </div>
+        )}
+        {activeTab === "stock" && (
+          <div className="animate-fadeIn">
             <StockReport
               filteredProductionRecords={filteredProductionRecords}
               filteredRestocks={filteredRestocks}
             />
-          )}
-        </TabsContent>
-      </Tabs>
+          </div>
+        )}
+      </div>
     </DashboardShell>
   );
 }
