@@ -1,6 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useManufacturing } from "@/context/manufacturing-context";
 import { ConsumptionReport } from "@/components/reports/consumption-report";
 import { ProductionReport } from "@/components/reports/production-report";
 import { QualityReport } from "@/components/reports/quality-report";
@@ -9,7 +12,19 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function ReportsPage() {
+  const { user } = useManufacturing();
+  const router = useRouter();
   const [activeTab, setActiveTab] = React.useState("production");
+
+  useEffect(() => {
+    if (user.role === "Operator") {
+      router.push("/production");
+    }
+  }, [user, router]);
+
+  if (user.role === "Operator") {
+    return null;
+  }
 
   return (
     <DashboardShell

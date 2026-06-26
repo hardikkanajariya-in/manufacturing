@@ -28,29 +28,36 @@ export function AppSidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 p-3">
-        {navItems.map((item) => {
-          const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
-          const NavIcon = item.icon;
+        {navItems
+          .filter((item) => {
+            if (user.role === "Operator") {
+              return item.title === "Production";
+            }
+            return true;
+          })
+          .map((item) => {
+            const isActive =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname.startsWith(item.href);
+            const NavIcon = item.icon;
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent/60"
-              )}
-            >
-              <NavIcon className="size-4 shrink-0" />
-              {item.title}
-            </Link>
-          );
-        })}
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent/60"
+                )}
+              >
+                <NavIcon className="size-4 shrink-0" />
+                {item.title}
+              </Link>
+            );
+          })}
       </nav>
 
       <div className="border-t border-sidebar-border p-4">

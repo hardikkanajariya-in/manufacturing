@@ -28,7 +28,7 @@ import { formatNumber, getTodayString } from "@/lib/helpers";
 import type { ProductionRecord } from "@/lib/types";
 
 export function ProductionForm() {
-  const { products, materials, submitProduction } = useManufacturing();
+  const { products, materials, submitProduction, user } = useManufacturing();
   const [productId, setProductId] = useState(products[0]?.id ?? "");
   const [quantity, setQuantity] = useState("");
   const [scrapQuantity, setScrapQuantity] = useState("");
@@ -273,24 +273,27 @@ export function ProductionForm() {
                 </div>
               </div>
 
-              <hr className="border-border" />
-
-              <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1.5 border">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Est. Value (Revenue)</span>
-                  <span className="font-bold text-foreground">₹{formatNumber(lastRecord.revenue, 2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Material Input Cost</span>
-                  <span className="font-semibold text-foreground">₹{formatNumber(lastRecord.materialCost, 2)}</span>
-                </div>
-                <div className="flex justify-between pt-1.5 border-t border-border/50 font-bold">
-                  <span>Net Gross Margin</span>
-                  <span className={lastRecord.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
-                    ₹{formatNumber(lastRecord.profit, 2)}
-                  </span>
-                </div>
-              </div>
+              {user.role === "Manager" && (
+                <>
+                  <hr className="border-border" />
+                  <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1.5 border">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Est. Value (Revenue)</span>
+                      <span className="font-bold text-foreground">₹{formatNumber(lastRecord.revenue, 2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Material Input Cost</span>
+                      <span className="font-semibold text-foreground">₹{formatNumber(lastRecord.materialCost, 2)}</span>
+                    </div>
+                    <div className="flex justify-between pt-1.5 border-t border-border/50 font-bold">
+                      <span>Net Gross Margin</span>
+                      <span className={lastRecord.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
+                        ₹{formatNumber(lastRecord.profit, 2)}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div>
                 <p className="mb-2 text-sm font-medium">Updated Stock</p>

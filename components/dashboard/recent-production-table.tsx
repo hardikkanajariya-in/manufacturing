@@ -14,7 +14,7 @@ import { useManufacturing } from "@/context/manufacturing-context";
 import { formatNumber } from "@/lib/helpers";
 
 export function RecentProductionTable() {
-  const { productionRecords } = useManufacturing();
+  const { productionRecords, user } = useManufacturing();
   const recent = productionRecords.slice(0, 6);
 
   return (
@@ -33,7 +33,7 @@ export function RecentProductionTable() {
               <TableHead>Product</TableHead>
               <TableHead className="text-right">Yield</TableHead>
               <TableHead className="text-right">Scrap</TableHead>
-              <TableHead className="text-right">Net Profit</TableHead>
+              {user.role === "Manager" && <TableHead className="text-right">Net Profit</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -49,9 +49,11 @@ export function RecentProductionTable() {
                 <TableCell className="text-right tabular-nums text-destructive">
                   {formatNumber(record.scrapQuantity || 0)}
                 </TableCell>
-                <TableCell className={`text-right tabular-nums font-bold ${record.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
-                  ₹{formatNumber(record.profit || 0, 0)}
-                </TableCell>
+                {user.role === "Manager" && (
+                  <TableCell className={`text-right tabular-nums font-bold ${record.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
+                    ₹{formatNumber(record.profit || 0, 0)}
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>

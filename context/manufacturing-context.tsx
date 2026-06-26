@@ -85,11 +85,20 @@ function calculateConsumption(
 
 const defaultUser: UserProfile = {
   name: "Rajesh Sharma",
-  role: "Plant Manager",
+  role: "Manager",
   email: "rajesh.sharma@cementpro.com",
   employeeId: "CP-4902",
   shift: "Shift A (06:00 – 14:00)",
   phone: "+91 98765 43210",
+};
+
+const operatorUser: UserProfile = {
+  name: "Amit Patel",
+  role: "Operator",
+  email: "operator.a@cementpro.com",
+  employeeId: "CP-8831",
+  shift: "Shift B (14:00 – 22:00)",
+  phone: "+91 98765 12345",
 };
 
 const defaultSettings: SystemSettings = {
@@ -124,10 +133,16 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<SystemSettings>(defaultSettings);
 
   const login = useCallback((email: string, password: string): boolean => {
-    if (email.toLowerCase().endsWith("@cementpro.com") && password === "password") {
+    const formattedEmail = email.toLowerCase();
+    if (formattedEmail.endsWith("@cementpro.com") && password === "password") {
       setIsAuthenticated(true);
       if (typeof window !== "undefined") {
         localStorage.setItem("mes_auth", "true");
+      }
+      if (formattedEmail.includes("operator") || formattedEmail.includes("amit")) {
+        setUser(operatorUser);
+      } else {
+        setUser(defaultUser);
       }
       return true;
     }

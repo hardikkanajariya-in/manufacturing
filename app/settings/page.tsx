@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useManufacturing } from "@/context/manufacturing-context";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +10,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, Target, Bell, Info, CheckCircle2, ShieldAlert } from "lucide-react";
 
 export default function SettingsPage() {
-  const { settings, updateSettings } = useManufacturing();
+  const { settings, updateSettings, user } = useManufacturing();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user.role === "Operator") {
+      router.push("/production");
+    }
+  }, [user, router]);
+
+  if (user.role === "Operator") {
+    return null;
+  }
 
   const [plantName, setPlantName] = React.useState(settings.plantName);
   const [paverTarget, setPaverTarget] = React.useState(settings.targetDailyOutput["Paver Blocks"]);

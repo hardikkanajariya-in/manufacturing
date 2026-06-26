@@ -75,12 +75,14 @@ export function AppHeader({ title, description }: AppHeaderProps) {
                 Profile
               </DropdownMenuItem>
             </Link>
-            <Link href="/settings">
-              <DropdownMenuItem className="cursor-pointer">
-                <Settings className="size-4" />
-                Settings
-              </DropdownMenuItem>
-            </Link>
+            {user.role === "Manager" && (
+              <Link href="/settings">
+                <DropdownMenuItem className="cursor-pointer">
+                  <Settings className="size-4" />
+                  Settings
+                </DropdownMenuItem>
+              </Link>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10">
               <LogOut className="size-4" />
