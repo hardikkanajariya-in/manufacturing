@@ -3,11 +3,12 @@
 import * as React from "react";
 import { ProductionForm } from "@/components/production/production-form";
 import { WorkOrdersList } from "@/components/production/work-orders";
+import { QcLedger } from "@/components/production/qc-ledger";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { cn } from "@/lib/utils";
 
 export default function ProductionPage() {
-  const [activeTab, setActiveTab] = React.useState<"entry" | "work-orders">("entry");
+  const [activeTab, setActiveTab] = React.useState<"entry" | "work-orders" | "qc-ledger">("entry");
 
   return (
     <DashboardShell
@@ -39,6 +40,17 @@ export default function ProductionPage() {
           >
             Work Orders Schedule
           </button>
+          <button
+            onClick={() => setActiveTab("qc-ledger")}
+            className={cn(
+              "pb-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 cursor-pointer",
+              activeTab === "qc-ledger"
+                ? "border-sky-600 text-sky-600 font-extrabold"
+                : "border-transparent text-slate-400 hover:text-slate-600"
+            )}
+          >
+            QC Lab Ledger
+          </button>
         </div>
 
         {/* Tab Contents */}
@@ -46,12 +58,17 @@ export default function ProductionPage() {
           <div className="animate-fadeIn">
             <ProductionForm />
           </div>
-        ) : (
+        ) : activeTab === "work-orders" ? (
           <div className="animate-fadeIn">
             <WorkOrdersList />
+          </div>
+        ) : (
+          <div className="animate-fadeIn">
+            <QcLedger />
           </div>
         )}
       </div>
     </DashboardShell>
   );
 }
+

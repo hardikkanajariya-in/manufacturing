@@ -45,6 +45,7 @@ interface ManufacturingContextValue {
   addRestock: (restock: Omit<RestockRecord, "id" | "createdAt">) => void;
   addWorkOrder: (workOrder: Omit<WorkOrder, "id" | "woNumber" | "createdAt">) => void;
   updateWorkOrderStatus: (id: string, status: WorkOrderStatus) => void;
+  updateWorkOrder: (id: string, fields: Partial<WorkOrder>) => void;
   deleteWorkOrder: (id: string) => void;
   submitProduction: (
     productId: string,
@@ -262,6 +263,12 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const updateWorkOrder = useCallback((id: string, fields: Partial<WorkOrder>) => {
+    setWorkOrders((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...fields } : item))
+    );
+  }, []);
+
   const deleteWorkOrder = useCallback((id: string) => {
     setWorkOrders((prev) => prev.filter((item) => item.id !== id));
   }, []);
@@ -351,6 +358,7 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
       addRestock,
       addWorkOrder,
       updateWorkOrderStatus,
+      updateWorkOrder,
       deleteWorkOrder,
       submitProduction,
       isAuthenticated,
@@ -377,6 +385,7 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
       addRestock,
       addWorkOrder,
       updateWorkOrderStatus,
+      updateWorkOrder,
       deleteWorkOrder,
       submitProduction,
       isAuthenticated,

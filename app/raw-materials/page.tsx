@@ -6,6 +6,7 @@ import { useManufacturing } from "@/context/manufacturing-context";
 import { MaterialsTable } from "@/components/materials/materials-table";
 import { RestockLedger } from "@/components/materials/restock-ledger";
 import { StockCardLedger } from "@/components/materials/stock-card-ledger";
+import { SupplierPortal } from "@/components/materials/supplier-portal";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,7 +18,7 @@ export default function RawMaterialsPage() {
   const { user, materials } = useManufacturing();
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<"stock" | "replenishment">("stock");
+  const [activeTab, setActiveTab] = useState<"stock" | "replenishment" | "suppliers">("stock");
   const [showLedger, setShowLedger] = useState(false);
   const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
 
@@ -91,6 +92,20 @@ export default function RawMaterialsPage() {
           >
             Replenishment Logs
           </button>
+          <button
+            onClick={() => {
+              setActiveTab("suppliers");
+              setShowLedger(false);
+            }}
+            className={cn(
+              "pb-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 cursor-pointer",
+              activeTab === "suppliers"
+                ? "border-sky-600 text-sky-600 font-extrabold"
+                : "border-transparent text-slate-400 hover:text-slate-600"
+            )}
+          >
+            Supplier Directory & Forecasts
+          </button>
         </div>
 
         {/* Tab Contents */}
@@ -157,13 +172,19 @@ export default function RawMaterialsPage() {
               </div>
             </div>
           )
-        ) : (
+        ) : activeTab === "replenishment" ? (
           /* Full-width Replenishment Logs */
           <div className="w-full animate-fadeIn">
             <RestockLedger />
+          </div>
+        ) : (
+          /* Supplier Directory & Forecasts */
+          <div className="w-full animate-fadeIn">
+            <SupplierPortal />
           </div>
         )}
       </div>
     </DashboardShell>
   );
 }
+

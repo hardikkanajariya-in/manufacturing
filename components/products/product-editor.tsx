@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useManufacturing } from "@/context/manufacturing-context";
 import type { FormulaItem } from "@/lib/types";
 import { formatNumber } from "@/lib/helpers";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface ProductEditorProps {
   productId: string | null; // null means Create Product, otherwise Edit Product/Formula
@@ -45,6 +47,117 @@ export function ProductEditor({ productId, onClose }: ProductEditorProps) {
   const [rows, setRows] = useState<FormulaRow[]>([]);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [savingState, setSavingState] = useState(false);
+
+  // AI Advisor states
+  const [geminiAdvice, setGeminiAdvice] = useState<any>(null);
+  const [hasConsultedGemini, setHasConsultedGemini] = useState(false);
+  const [advisorLoading, setAdvisorLoading] = useState(false);
+
+  // Clear Gemini advice on ratio/row updates
+  useEffect(() => {
+    setHasConsultedGemini(false);
+    setGeminiAdvice(null);
+  }, [rows]);
+
+  const localAdvisorData = useMemo(() => {
+    let cement = 0;
+    let flyash = 0;
+    let water = 0;
+    
+    rows.forEach((row) => {
+      const mat = materials.find((m) => m.id === row.materialId);
+      if (!mat) return;
+      const qty = Number(row.quantity) || 0;
+      const nameLower = mat.name.toLowerCase();
+      if (nameLower.includes("cement")) cement += qty;
+      else if (nameLower.includes("fly") || nameLower.includes("ash")) flyash += qty;
+      else if (nameLower.includes("water")) water += qty;
+    });
+
+    const binder = cement + 0.6 * flyash;
+    const wb = binder > 0 ? water / binder : 0.6;
+    
+    let strength28d = 30;
+    let crackingRisk: "Low" | "Medium" | "High" = "Low";
+
+    if (binder === 0) {
+      strength28d = 0;
+      crackingRisk = "High";
+    } else {
+      if (wb > 0.65) {
+        strength28d = Math.max(5, Math.round(20 - (wb - 0.65) * 50));
+        crackingRisk = "Low";
+      } else if (wb >= 0.35 && wb <= 0.65) {
+        strength28d = Math.round(15 + (0.65 - wb) * 110);
+        crackingRisk = wb < 0.42 ? "Medium" : "Low";
+      } else {
+        strength28d = Math.max(10, Math.round(48 - (0.35 - wb) * 100));
+        crackingRisk = "High";
+      }
+    }
+
+    const strength7d = Math.round(strength28d * 0.7);
+    const wCementRatio = cement > 0 ? (water / cement).toFixed(2) : "N/A";
+    const chemicalAnalysis = `The mix exhibits a Water-Cement ratio of ${wCementRatio} and a binder weight of ${binder.toFixed(1)} Kg. Hydration of tricalcium silicate (C3S) drives initial 7-day strength.`;
+    
+    let advice = "";
+    if (wb > 0.5) {
+      advice = `• Reduce Water: Lowering water by 5-10% will densify the matrix and boost strength.\n• Cost Optimization: Consider replacing 5% of cement with fly ash to reduce materials cost.`;
+    } else if (wb < 0.35) {
+      advice = `• Increase Water: The mix is extremely dry (${wb.toFixed(2)} W/B). Raise W/B to 0.38 for better workability.\n• Add plasticizer: Use a superplasticizer admixture to maintain flowability instead of raw water.`;
+    } else {
+      advice = `• Mix Balanced: The water-binder ratio (${wb.toFixed(2)}) is optimal for standard precast output.`;
+    }
+
+    return {
+      predictedStrength28d: strength28d,
+      predictedStrength7d: strength7d,
+      crackingRisk,
+      chemicalAnalysis,
+      advice
+    };
+  }, [rows, materials]);
+
+  const advisorData = geminiAdvice || localAdvisorData;
+
+  const fetchRecipeAdvice = async () => {
+    if (rows.length === 0) return;
+    setAdvisorLoading(true);
+    
+    const formulaPayload = rows
+      .map((r) => {
+        const mat = materials.find((m) => m.id === r.materialId);
+        return {
+          materialName: mat?.name ?? "Unknown",
+          quantity: Number(r.quantity) || 0,
+          unit: mat?.unit ?? "Kg",
+        };
+      })
+      .filter((item) => item.quantity > 0);
+
+    try {
+      const res = await fetch("/api/gemini/recipe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ formula: formulaPayload }),
+      });
+      
+      if (!res.ok) throw new Error("Failed to contact Gemini server.");
+      const json = await res.json();
+      
+      if (json.error) {
+        throw new Error(json.error);
+      }
+      
+      setGeminiAdvice(json.data);
+      setHasConsultedGemini(true);
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "An error occurred fetching AI advice.");
+    } finally {
+      setAdvisorLoading(false);
+    }
+  };
 
   // Initialize fields
   useEffect(() => {
@@ -308,6 +421,76 @@ export function ProductEditor({ productId, onClose }: ProductEditorProps) {
                       <span>This recipe is unprofitable. Material input cost exceeds your selling price. Lower the ingredient ratios or increase the unit selling price.</span>
                     </div>
                   )}
+                </CardContent>
+              </Card>
+            )}
+
+            {rows.length > 0 && (
+              <Card className="bg-white border-slate-200 shadow-sm animate-fadeIn">
+                <CardHeader className="pb-2 flex flex-row items-center justify-between border-b border-slate-100">
+                  <CardTitle className="text-base font-extrabold text-slate-800 flex items-center gap-1.5">
+                    <Sparkles className="size-4 text-sky-600 animate-pulse" />
+                    AI Concrete Advisor
+                  </CardTitle>
+                  {advisorLoading ? (
+                    <Loader2 className="size-3.5 animate-spin text-sky-600" />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={fetchRecipeAdvice}
+                      className="text-[10px] font-black uppercase text-sky-600 hover:text-sky-500 cursor-pointer"
+                    >
+                      {hasConsultedGemini ? "Updated" : "Consult AI"}
+                    </button>
+                  )}
+                </CardHeader>
+                <CardContent className="pt-4 space-y-4 text-xs">
+                  {/* Compressive Strength Indicators */}
+                  <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <div>
+                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px] block">7-Day Strength</span>
+                      <span className="text-sm font-black text-slate-700 mt-0.5 block font-mono">
+                        {advisorData.predictedStrength7d > 0 ? `${advisorData.predictedStrength7d} MPa` : "N/A"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px] block">28-Day Strength</span>
+                      <span className="text-sm font-black text-sky-700 mt-0.5 block font-mono">
+                        {advisorData.predictedStrength28d > 0 ? `${advisorData.predictedStrength28d} MPa` : "N/A"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Cracking Risk */}
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Cracking Risk</span>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[9px] font-black uppercase tracking-wider px-2 py-0.5",
+                        advisorData.crackingRisk === "Low"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-250 animate-fadeIn"
+                          : advisorData.crackingRisk === "Medium"
+                            ? "bg-amber-50 text-amber-700 border-amber-250 animate-fadeIn"
+                            : "bg-rose-50 text-rose-700 border-rose-250 animate-pulse"
+                      )}
+                    >
+                      {advisorData.crackingRisk} Risk
+                    </Badge>
+                  </div>
+
+                  {/* Chem description */}
+                  <p className="text-slate-500 text-[11px] leading-relaxed italic bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
+                    {advisorData.chemicalAnalysis}
+                  </p>
+
+                  {/* Optimization recommendations */}
+                  <div className="space-y-1.5 border-t border-slate-100 pt-3">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Optimization Coach</span>
+                    <div className="text-slate-600 text-[11px] leading-relaxed whitespace-pre-line font-medium">
+                      {advisorData.advice}
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )}

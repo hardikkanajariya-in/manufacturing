@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Plus, Check, Play, Ban, Trash2, ShieldCheck, AlertTriangle, ArrowLeft } from "lucide-react";
+import { Plus, Check, Play, Ban, Trash2, ShieldCheck, AlertTriangle, ArrowLeft, List, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GanttScheduler } from "./gantt-scheduler";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +53,7 @@ export function WorkOrdersList() {
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
   const [selectedWoId, setSelectedWoId] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "gantt">("list");
 
   // New WO State
   const [productId, setProductId] = useState("");
@@ -174,7 +176,43 @@ export function WorkOrdersList() {
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full space-y-4">
+      {/* View Toggle Bar (Only show if not drill-down details mode) */}
+      {!showDetails && (
+        <div className="flex justify-between items-center bg-slate-50 border border-slate-200 p-2 rounded-xl">
+          <div className="flex border border-slate-200 rounded-lg overflow-hidden bg-white p-0.5">
+            <Button
+              type="button"
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              onClick={() => setViewMode("list")}
+              className={cn(
+                "text-xs px-2.5 py-1 h-7 font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer",
+                viewMode === "list" ? "bg-slate-100 text-sky-700 shadow-xs" : "text-slate-500 hover:text-slate-800"
+              )}
+            >
+              <List className="size-3.5" />
+              List View
+            </Button>
+            <Button
+              type="button"
+              variant={viewMode === "gantt" ? "secondary" : "ghost"}
+              onClick={() => setViewMode("gantt")}
+              className={cn(
+                "text-xs px-2.5 py-1 h-7 font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer",
+                viewMode === "gantt" ? "bg-slate-100 text-sky-700 shadow-xs" : "text-slate-500 hover:text-slate-800"
+              )}
+            >
+              <Calendar className="size-3.5" />
+              Gantt Timeline
+            </Button>
+          </div>
+          <Button onClick={() => setCreateDialogOpen(true)} className="font-bold uppercase tracking-wider text-xs flex items-center gap-1.5 shadow-sm cursor-pointer h-8">
+            <Plus className="size-4" />
+            Schedule Run
+          </Button>
+        </div>
+      )}
+
       {showDetails && selectedWo ? (
         /* Pre-flight Checks Drill-down Card */
         <div className="animate-fadeIn w-full">
@@ -278,6 +316,10 @@ export function WorkOrdersList() {
               )}
             </CardContent>
           </Card>
+        </div>
+      ) : viewMode === "gantt" ? (
+        <div className="animate-fadeIn">
+          <GanttScheduler />
         </div>
       ) : (
         /* Work Orders List Table (Full-Width) */
