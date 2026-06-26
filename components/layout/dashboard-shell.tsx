@@ -20,14 +20,16 @@ export function DashboardShell({
 }: DashboardShellProps) {
   const { isAuthenticated } = useManufacturing();
   const router = useRouter();
+  const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
+    setMounted(true);
     if (!isAuthenticated) {
       router.push("/login");
     }
   }, [isAuthenticated, router]);
 
-  if (!isAuthenticated) {
+  if (!mounted || !isAuthenticated) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-slate-950">
         <div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />

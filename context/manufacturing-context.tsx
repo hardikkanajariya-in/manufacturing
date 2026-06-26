@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -123,15 +124,20 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
   const [restocks, setRestocks] = useState<RestockRecord[]>(initialRestocks);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>(initialWorkOrders);
 
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("mes_auth") === "true";
-    }
-    return false;
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   const [user, setUser] = useState<UserProfile>(defaultUser);
   const [settings, setSettings] = useState<SystemSettings>(defaultSettings);
+
+  // Hydrate auth state from localStorage after mount to avoid SSR mismatch
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("mes_auth") === "true";
+      if (stored) {
+        setIsAuthenticated(true);
+      }
+    }
+  }, []);
 
   const login = useCallback((email: string, password: string): boolean => {
     const formattedEmail = email.toLowerCase();

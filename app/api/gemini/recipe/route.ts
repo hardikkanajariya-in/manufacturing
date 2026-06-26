@@ -1,24 +1,64 @@
 import { NextResponse } from "next/server";
+import { callGemini, isGeminiAvailable, type GeminiResponseSchema } from "@/lib/gemini";
+
+// ─── Schema ─────────────────────────────────────────────────────────────────────
+
+const RECIPE_ANALYSIS_SCHEMA: GeminiResponseSchema = {
+  type: "OBJECT",
+  properties: {
+    predictedStrength28d: {
+      type: "INTEGER",
+      description: "Predicted 28-day concrete strength in MPa.",
+    },
+    predictedStrength7d: {
+      type: "INTEGER",
+      description: "Predicted 7-day concrete strength in MPa.",
+    },
+    crackingRisk: {
+      type: "STRING",
+      enum: ["Low", "Medium", "High"],
+      description: "Risk of concrete cracking.",
+    },
+    chemicalAnalysis: {
+      type: "STRING",
+      description: "Brief scientific description of the mix behavior.",
+    },
+    advice: {
+      type: "STRING",
+      description: "Plaintext suggestions for optimization (bullet points or sentences).",
+    },
+  },
+  required: ["predictedStrength28d", "predictedStrength7d", "crackingRisk", "chemicalAnalysis", "advice"],
+};
+
+// ─── Types ──────────────────────────────────────────────────────────────────────
+
+interface RecipeAnalysisResult {
+  predictedStrength28d: number;
+  predictedStrength7d: number;
+  crackingRisk: "Low" | "Medium" | "High";
+  chemicalAnalysis: string;
+  advice: string;
+}
+
+// ─── Route Handler ──────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
   try {
-    const { formula, products } = await req.json();
+    const { formula } = await req.json();
 
     if (!formula || !Array.isArray(formula)) {
       return NextResponse.json({ error: "Formula recipe array is required" }, { status: 400 });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-
-    if (!apiKey) {
-      console.warn("GEMINI_API_KEY is not defined. Falling back to local concrete chemistry model.");
+    // Fallback to local chemistry model if no API key
+    if (!isGeminiAvailable()) {
+      console.warn("[AI] GEMINI_API_KEY not configured. Using local concrete chemistry model.");
       const prediction = calculateLocalRecipeAdvice(formula);
       return NextResponse.json({ data: prediction, isMock: true });
     }
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-    const promptText = `You are an expert concrete mix design engineer and concrete chemist.
+    const prompt = `You are an expert concrete mix design engineer and concrete chemist.
 The user has mixed a precast concrete recipe. Your job is to analyze the ingredients and quantities (in Kg or Litres) and predict properties.
 
 Recipe Ingredients:
@@ -33,62 +73,27 @@ Please return:
 
 Return a structured JSON output conforming to the response schema.`;
 
-    const requestBody = {
-      contents: [{ parts: [{ text: promptText }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "OBJECT",
-          properties: {
-            predictedStrength28d: { type: "INTEGER", description: "Predicted 28-day concrete strength in MPa." },
-            predictedStrength7d: { type: "INTEGER", description: "Predicted 7-day concrete strength in MPa." },
-            crackingRisk: { type: "STRING", enum: ["Low", "Medium", "High"], description: "Risk of concrete cracking." },
-            chemicalAnalysis: { type: "STRING", description: "Brief scientific description of the mix behavior." },
-            advice: { type: "STRING", description: "Plaintext suggestions for optimization (bullet points or sentences)." }
-          },
-          required: ["predictedStrength28d", "predictedStrength7d", "crackingRisk", "chemicalAnalysis", "advice"]
-        }
-      }
-    };
-
-    const response = await fetch(geminiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody)
+    const result = await callGemini<RecipeAnalysisResult>({
+      prompt,
+      responseSchema: RECIPE_ANALYSIS_SCHEMA,
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Gemini Recipe API error response:", errText);
-      throw new Error(`Gemini API responded with status ${response.status}`);
-    }
-
-    const resJson = await response.json();
-    const parsedText = resJson?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!parsedText) {
-      throw new Error("Invalid response format received from Gemini");
-    }
-
-    const parsedData = JSON.parse(parsedText);
-    return NextResponse.json({ data: parsedData, isMock: false });
-
+    return NextResponse.json({ data: result, isMock: false });
   } catch (error: any) {
-    console.error("Error in Gemini Recipe API route:", error);
+    console.error("[AI] Recipe analysis error:", error);
     return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
   }
 }
 
+// ─── Local Fallback: Abrams' Law Simulation ─────────────────────────────────────
+
 /**
- * Local simulation of Abrams' concrete strength calculations based on Water-to-Binder ratios.
+ * Local simulation of concrete strength calculations based on Water-to-Binder ratios.
  */
-function calculateLocalRecipeAdvice(formula: any[]) {
-  // Find ingredient values from array
+function calculateLocalRecipeAdvice(formula: any[]): RecipeAnalysisResult {
   let cement = 0;
   let flyash = 0;
   let water = 0;
-  let sand = 0;
-  let gravel = 0;
 
   formula.forEach((item: any) => {
     const name = item.materialName.toLowerCase();
@@ -96,53 +101,43 @@ function calculateLocalRecipeAdvice(formula: any[]) {
     if (name.includes("cement")) cement += qty;
     else if (name.includes("fly") || name.includes("ash")) flyash += qty;
     else if (name.includes("water")) water += qty;
-    else if (name.includes("sand")) sand += qty;
-    else if (name.includes("gravel") || name.includes("stone") || name.includes("aggregate")) gravel += qty;
   });
 
   // Calculate water-to-binder ratio (W/B)
   const binder = cement + 0.6 * flyash; // Pozzolanic factor
-  const wb = binder > 0 ? water / binder : 0.6; // Default to 0.6 if no binder
+  const wb = binder > 0 ? water / binder : 0.6;
 
-  // Calculate predicted 28-day Compressive Strength (MPa) based on Abrams' Law curves
-  let strength28d = 30; // base standard strength
+  let strength28d = 30;
   let crackingRisk: "Low" | "Medium" | "High" = "Low";
 
   if (binder === 0) {
     strength28d = 0;
     crackingRisk = "High";
   } else {
-    // Abrams' law curve: strength increases as w/c ratio falls, down to 0.28 limit
     if (wb > 0.65) {
       strength28d = Math.max(5, 20 - (wb - 0.65) * 50);
-      crackingRisk = "Low"; // concrete is too wet/soupy, low cracking but low strength
+      crackingRisk = "Low";
     } else if (wb >= 0.35 && wb <= 0.65) {
-      strength28d = Math.round(15 + (0.65 - wb) * 110); // yields 15 to 48 MPa
+      strength28d = Math.round(15 + (0.65 - wb) * 110);
       crackingRisk = wb < 0.42 ? "Medium" : "Low";
     } else {
-      // Very dry mix (W/B < 0.35)
-      strength28d = Math.max(10, Math.round(48 - (0.35 - wb) * 100)); // drops if too dry to hydrate
-      crackingRisk = "High"; // high cracking risk due to dry consolidation shrinkage
+      strength28d = Math.max(10, Math.round(48 - (0.35 - wb) * 100));
+      crackingRisk = "High";
     }
   }
 
-  // 7d strength is usually ~70% of 28d strength in standard cement hydration
   const strength7d = Math.round(strength28d * 0.7);
-
-  // Recommendations and chemistry logs
   const wCementRatio = cement > 0 ? (water / cement).toFixed(2) : "N/A";
+
   const chemicalAnalysis = `The mix exhibits a Water-Cement ratio of ${wCementRatio} and a binder weight of ${binder.toFixed(1)} Kg. Hydration of tricalcium silicate (C3S) drives the initial 7-day strength, while fly ash pozzolanic reactions improve long-term density.`;
 
   let advice = "";
   if (wb > 0.5) {
-    advice = `• Reduce Water: The water-to-binder ratio is high (${wb.toFixed(2)}). Reducing water by 5-10% will densify the matrix and boost strength.
-• Cost Optimization: Consider replacing 5% of cement with fly ash to reduce materials cost without losing safety limits.`;
+    advice = `• Reduce Water: The water-to-binder ratio is high (${wb.toFixed(2)}). Reducing water by 5-10% will densify the matrix and boost strength.\n• Cost Optimization: Consider replacing 5% of cement with fly ash to reduce materials cost without losing safety limits.`;
   } else if (wb < 0.35) {
-    advice = `• Increase Water: The mix is extremely dry (${wb.toFixed(2)} W/B). Hydration might stall due to lack of moisture. Raise W/B to 0.38 for better workability.
-• Add plasticizer: Use a superplasticizer admixture to maintain flowability instead of raw water.`;
+    advice = `• Increase Water: The mix is extremely dry (${wb.toFixed(2)} W/B). Hydration might stall due to lack of moisture. Raise W/B to 0.38 for better workability.\n• Add plasticizer: Use a superplasticizer admixture to maintain flowability instead of raw water.`;
   } else {
-    advice = `• Mix Balanced: The water-binder ratio (${wb.toFixed(2)}) is optimal for standard precast output.
-• Cost Coach: You can slightly increase coarse aggregates (gravel) by 5% to reduce raw paste volumes and save costs.`;
+    advice = `• Mix Balanced: The water-binder ratio (${wb.toFixed(2)}) is optimal for standard precast output.\n• Cost Coach: You can slightly increase coarse aggregates (gravel) by 5% to reduce raw paste volumes and save costs.`;
   }
 
   return {
@@ -150,6 +145,6 @@ function calculateLocalRecipeAdvice(formula: any[]) {
     predictedStrength7d: strength7d,
     crackingRisk,
     chemicalAnalysis,
-    advice
+    advice,
   };
 }

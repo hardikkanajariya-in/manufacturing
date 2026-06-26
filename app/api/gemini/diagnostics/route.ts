@@ -1,4 +1,37 @@
 import { NextResponse } from "next/server";
+import { callGemini, isGeminiAvailable, type GeminiResponseSchema } from "@/lib/gemini";
+
+// ─── Schema ─────────────────────────────────────────────────────────────────────
+
+const DIAGNOSTICS_SCHEMA: GeminiResponseSchema = {
+  type: "OBJECT",
+  properties: {
+    anomalies: {
+      type: "STRING",
+      description: "Identified scrap trends or variances in the logs.",
+    },
+    recommendations: {
+      type: "STRING",
+      description: "Actionable adjustments for floor operators.",
+    },
+    riskLevel: {
+      type: "STRING",
+      enum: ["Low", "Medium", "High"],
+      description: "Overall quality risk level.",
+    },
+  },
+  required: ["anomalies", "recommendations", "riskLevel"],
+};
+
+// ─── Types ──────────────────────────────────────────────────────────────────────
+
+interface DiagnosticsResult {
+  anomalies: string;
+  recommendations: string;
+  riskLevel: "Low" | "Medium" | "High";
+}
+
+// ─── Route Handler ──────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
   try {
@@ -8,22 +41,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Production records array is required" }, { status: 400 });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-
-    if (!apiKey) {
-      console.warn("GEMINI_API_KEY is not defined. Falling back to local diagnostics auditor.");
+    // Fallback to local diagnostics if no API key
+    if (!isGeminiAvailable()) {
+      console.warn("[AI] GEMINI_API_KEY not configured. Using local diagnostics auditor.");
       const analysis = runLocalDiagnostics(productionRecords, selectedProduct);
       return NextResponse.json({ data: analysis, isMock: true });
     }
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
     // Select logs of interest to keep token context size small
-    const targetLogs = selectedProduct 
-      ? productionRecords.filter((r) => r.productName === selectedProduct).slice(0, 15)
+    const targetLogs = selectedProduct
+      ? productionRecords.filter((r: any) => r.productName === selectedProduct).slice(0, 15)
       : productionRecords.slice(0, 20);
 
-    const promptText = `You are a Senior Plant Manager and Quality Assurance Lead at CementPro Precast Units.
+    const prompt = `You are a Senior Plant Manager and Quality Assurance Lead at CementPro Precast Units.
 Analyze the following production run logs to search for anomalies, scrap spikes, shift-related defects, or machine issues.
 
 Production Logs:
@@ -36,55 +66,22 @@ Please return:
 
 Return a structured JSON output conforming to the response schema.`;
 
-    const requestBody = {
-      contents: [{ parts: [{ text: promptText }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "OBJECT",
-          properties: {
-            anomalies: { type: "STRING", description: "Identified scrap trends or variances in the logs." },
-            recommendations: { type: "STRING", description: "Actionable adjustments for floor operators." },
-            riskLevel: { type: "STRING", enum: ["Low", "Medium", "High"], description: "Overall quality risk level." }
-          },
-          required: ["anomalies", "recommendations", "riskLevel"]
-        }
-      }
-    };
-
-    const response = await fetch(geminiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody)
+    const result = await callGemini<DiagnosticsResult>({
+      prompt,
+      responseSchema: DIAGNOSTICS_SCHEMA,
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Gemini Diagnostics API error response:", errText);
-      throw new Error(`Gemini API responded with status ${response.status}`);
-    }
-
-    const resJson = await response.json();
-    const parsedText = resJson?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!parsedText) {
-      throw new Error("Invalid response format received from Gemini");
-    }
-
-    const parsedData = JSON.parse(parsedText);
-    return NextResponse.json({ data: parsedData, isMock: false });
-
+    return NextResponse.json({ data: result, isMock: false });
   } catch (error: any) {
-    console.error("Error in Gemini Diagnostics API route:", error);
+    console.error("[AI] Diagnostics error:", error);
     return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
   }
 }
 
-function runLocalDiagnostics(records: any[], product: string | null) {
-  // Filter records
-  const filtered = product 
-    ? records.filter((r) => r.productName === product)
-    : records;
+// ─── Local Fallback Diagnostics ─────────────────────────────────────────────────
+
+function runLocalDiagnostics(records: any[], product: string | null): DiagnosticsResult {
+  const filtered = product ? records.filter((r: any) => r.productName === product) : records;
 
   if (filtered.length === 0) {
     return {
@@ -97,8 +94,8 @@ function runLocalDiagnostics(records: any[], product: string | null) {
   // Calculate yield vs scrap
   let totalYield = 0;
   let totalScrap = 0;
-  
-  filtered.forEach((r) => {
+
+  filtered.forEach((r: any) => {
     totalYield += r.quantity;
     totalScrap += r.scrapQuantity || 0;
   });
@@ -124,9 +121,5 @@ function runLocalDiagnostics(records: any[], product: string | null) {
     recommendations = `• Maintain standard parameters: Maintain the active aggregate ratios.\n• Calibrate scales: Schedule monthly calibrations for cement weighing systems.`;
   }
 
-  return {
-    anomalies,
-    recommendations,
-    riskLevel,
-  };
+  return { anomalies, recommendations, riskLevel };
 }

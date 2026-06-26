@@ -1,4 +1,46 @@
 import { NextResponse } from "next/server";
+import { callGemini, isGeminiAvailable, type GeminiResponseSchema } from "@/lib/gemini";
+
+// ─── Schema ─────────────────────────────────────────────────────────────────────
+
+const PURCHASE_ORDER_SCHEMA: GeminiResponseSchema = {
+  type: "OBJECT",
+  properties: {
+    poNumber: {
+      type: "STRING",
+      description: "Format: PO-2026-XXXX",
+    },
+    subject: {
+      type: "STRING",
+      description: "Email subject line.",
+    },
+    emailBody: {
+      type: "STRING",
+      description: "Formal procurement message body.",
+    },
+    deliveryCommitment: {
+      type: "STRING",
+      description: "Expected delivery deadline.",
+    },
+    terms: {
+      type: "STRING",
+      description: "Payment terms and shipping address details.",
+    },
+  },
+  required: ["poNumber", "subject", "emailBody", "deliveryCommitment", "terms"],
+};
+
+// ─── Types ──────────────────────────────────────────────────────────────────────
+
+interface PurchaseOrderResult {
+  poNumber: string;
+  subject: string;
+  emailBody: string;
+  deliveryCommitment: string;
+  terms: string;
+}
+
+// ─── Route Handler ──────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
   try {
@@ -8,18 +50,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required parameters" }, { status: 400 });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     const totalValue = quantityNeeded * unitCost;
 
-    if (!apiKey) {
-      console.warn("GEMINI_API_KEY is not defined. Falling back to local PO generator.");
+    // Fallback to local PO generator if no API key
+    if (!isGeminiAvailable()) {
+      console.warn("[AI] GEMINI_API_KEY not configured. Using local PO generator.");
       const prediction = generateLocalPo(supplierName, materialName, quantityNeeded, unit, unitCost, leadTime);
       return NextResponse.json({ data: prediction, isMock: true });
     }
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-    const promptText = `You are a professional industrial procurement specialist for CementPro Factory Unit 4.
+    const prompt = `You are a professional industrial procurement specialist for CementPro Factory Unit 4.
 Draft a formal Purchase Order (PO) to the supplier.
 
 Supplier details:
@@ -39,51 +79,19 @@ Please return:
 
 Return a structured JSON output conforming to the response schema.`;
 
-    const requestBody = {
-      contents: [{ parts: [{ text: promptText }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "OBJECT",
-          properties: {
-            poNumber: { type: "STRING", description: "Format: PO-2026-XXXX" },
-            subject: { type: "STRING", description: "Email subject line." },
-            emailBody: { type: "STRING", description: "Formal procurement message body." },
-            deliveryCommitment: { type: "STRING", description: "Expected delivery deadline." },
-            terms: { type: "STRING", description: "Payment terms and shipping address details." }
-          },
-          required: ["poNumber", "subject", "emailBody", "deliveryCommitment", "terms"]
-        }
-      }
-    };
-
-    const response = await fetch(geminiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody)
+    const result = await callGemini<PurchaseOrderResult>({
+      prompt,
+      responseSchema: PURCHASE_ORDER_SCHEMA,
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Gemini PO API error response:", errText);
-      throw new Error(`Gemini API responded with status ${response.status}`);
-    }
-
-    const resJson = await response.json();
-    const parsedText = resJson?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!parsedText) {
-      throw new Error("Invalid response format received from Gemini");
-    }
-
-    const parsedData = JSON.parse(parsedText);
-    return NextResponse.json({ data: parsedData, isMock: false });
-
+    return NextResponse.json({ data: result, isMock: false });
   } catch (error: any) {
-    console.error("Error in Gemini PO API route:", error);
+    console.error("[AI] Purchase order generation error:", error);
     return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
   }
 }
+
+// ─── Local Fallback PO Generator ────────────────────────────────────────────────
 
 function generateLocalPo(
   supplier: string,
@@ -92,7 +100,7 @@ function generateLocalPo(
   unit: string,
   cost: number,
   lead: number
-) {
+): PurchaseOrderResult {
   const randNum = Math.floor(1000 + Math.random() * 9000);
   const poNumber = `PO-2026-${randNum}`;
   const total = qty * cost;
