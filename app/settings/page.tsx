@@ -7,7 +7,7 @@ import { useManufacturing } from "@/context/manufacturing-context";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Target, Bell, Info, CheckCircle2, ShieldAlert } from "lucide-react";
+import { Building2, Target, Bell, CheckCircle2, ShieldAlert } from "lucide-react";
 
 export default function SettingsPage() {
   const { settings, updateSettings, user } = useManufacturing();
@@ -102,13 +102,6 @@ export default function SettingsPage() {
               >
                 <Bell className="size-4 shrink-0" />
                 Notification Alerts
-              </TabsTrigger>
-              <TabsTrigger
-                value="system"
-                className="justify-start gap-3 px-3 py-2.5 cursor-pointer"
-              >
-                <Info className="size-4 shrink-0" />
-                System Info
               </TabsTrigger>
             </TabsList>
 
@@ -248,47 +241,14 @@ export default function SettingsPage() {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="system" className="mt-0">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">System Details & Status</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-3 sm:grid-cols-2 text-sm">
-                      <div className="rounded-lg border border-border p-3">
-                        <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Software Stack</p>
-                        <p className="font-medium text-foreground mt-1">Next.js 16 (Turbopack) / React 19</p>
-                      </div>
-                      <div className="rounded-lg border border-border p-3">
-                        <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Theme Engine</p>
-                        <p className="font-medium text-foreground mt-1">Tailwind CSS v4 (Embedded @theme)</p>
-                      </div>
-                      <div className="rounded-lg border border-border p-3">
-                        <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Database Adapter</p>
-                        <p className="font-medium text-foreground mt-1">Mock In-Memory JSON State Store</p>
-                      </div>
-                      <div className="rounded-lg border border-border p-3">
-                        <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Uptime Server</p>
-                        <p className="font-medium text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1.5">
-                          <span className="size-2 rounded-full bg-emerald-500" />
-                          Online (100% stable)
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {activeSettingsTab !== "system" && (
-                <div className="flex justify-end mt-6">
-                  <button
-                    type="submit"
-                    className="rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground px-4 py-2 text-sm font-semibold transition-colors duration-150 cursor-pointer"
-                  >
-                    Save Settings
-                  </button>
-                </div>
-              )}
+              <div className="flex justify-end mt-6">
+                <button
+                  type="submit"
+                  className="rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground px-4 py-2 text-sm font-semibold transition-colors duration-150 cursor-pointer"
+                >
+                  Save Settings
+                </button>
+              </div>
             </div>
           </Tabs>
         </form>

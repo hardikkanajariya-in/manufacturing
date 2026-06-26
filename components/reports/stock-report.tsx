@@ -29,13 +29,49 @@ const CHART_COLORS = [
   "var(--chart-5)",
 ];
 
-export function StockReport() {
-  const { materials } = useManufacturing();
+import type { ProductionRecord, RestockRecord } from "@/lib/types";
+
+interface StockReportProps {
+  filteredProductionRecords?: ProductionRecord[];
+  filteredRestocks?: RestockRecord[];
+}
+
+export function StockReport({ filteredProductionRecords, filteredRestocks }: StockReportProps) {
+  const { materials, productionRecords: contextProduction, restocks: contextRestocks } = useManufacturing();
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
+
+  const productions = filteredProductionRecords || contextProduction;
+  const restockRecords = filteredRestocks || contextRestocks;
+
+  // Calculate Inflow and Outflow per material in this period
+  const materialStats = React.useMemo(() => {
+    const stats = materials.reduce<
+      Record<string, { inflow: number; outflow: number }>
+    >((acc, m) => {
+      acc[m.id] = { inflow: 0, outflow: 0 };
+      return acc;
+    }, {});
+
+    restockRecords.forEach((r) => {
+      if (stats[r.materialId]) {
+        stats[r.materialId].inflow += r.quantity;
+      }
+    });
+
+    productions.forEach((p) => {
+      p.consumption.forEach((c) => {
+        if (stats[c.materialId]) {
+          stats[c.materialId].outflow += c.quantity;
+        }
+      });
+    });
+
+    return stats;
+  }, [materials, productions, restockRecords]);
 
   const chartData = materials.map((material) => ({
     name: material.name,
@@ -128,7 +164,10 @@ export function StockReport() {
               <TableRow>
                 <TableHead>Material</TableHead>
                 <TableHead>Unit</TableHead>
-                <TableHead className="text-right">Available</TableHead>
+                <TableHead className="text-right">Available Stock</TableHead>
+                <TableHead className="text-right">Period Inflow (+)</TableHead>
+                <TableHead className="text-right">Period Outflow (-)</TableHead>
+                <TableHead className="text-right">Net Change</TableHead>
                 <TableHead className="text-right">Minimum</TableHead>
                 <TableHead className="text-right">Fill %</TableHead>
                 <TableHead>Status</TableHead>
@@ -150,12 +189,24 @@ export function StockReport() {
                       ? "secondary"
                       : "outline";
 
+                const stats = materialStats[material.id] || { inflow: 0, outflow: 0 };
+                const netChange = stats.inflow - stats.outflow;
+
                 return (
                   <TableRow key={material.id}>
                     <TableCell className="font-medium">{material.name}</TableCell>
                     <TableCell>{material.unit}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatNumber(material.availableStock, 1)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-emerald-600 font-medium">
+                      +{formatNumber(stats.inflow, 1)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-rose-600 font-medium">
+                      -{formatNumber(stats.outflow, 1)}
+                    </TableCell>
+                    <TableCell className={`text-right tabular-nums font-bold ${netChange >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                      {netChange > 0 ? "+" : ""}{formatNumber(netChange, 1)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
                       {formatNumber(material.minimumStock)}

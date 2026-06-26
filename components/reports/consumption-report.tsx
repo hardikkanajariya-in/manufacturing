@@ -22,9 +22,15 @@ import {
 } from "@/components/ui/table";
 import { useManufacturing } from "@/context/manufacturing-context";
 import { formatNumber } from "@/lib/helpers";
+import type { ProductionRecord } from "@/lib/types";
 
-export function ConsumptionReport() {
-  const { productionRecords } = useManufacturing();
+interface ConsumptionReportProps {
+  filteredRecords?: ProductionRecord[];
+}
+
+export function ConsumptionReport({ filteredRecords }: ConsumptionReportProps) {
+  const { productionRecords: contextRecords } = useManufacturing();
+  const productionRecords = filteredRecords || contextRecords;
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
