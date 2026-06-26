@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { useManufacturing } from "@/context/manufacturing-context";
 import type { MaterialUnit, RawMaterial } from "@/lib/types";
+import { AlertCircle, Layers } from "lucide-react";
 
 interface MaterialDialogProps {
   open: boolean;
@@ -76,49 +77,58 @@ export function MaterialDialog({
     onOpenChange(false);
   };
 
+  const isLowStockWarning = 
+    availableStock !== "" && 
+    minimumStock !== "" && 
+    Number(availableStock) <= Number(minimumStock);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md bg-white border border-slate-200">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Material" : "Add Material"}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <Layers className="size-5 text-sky-600" />
+            {isEditing ? "Edit Material" : "Add New Material"}
+          </DialogTitle>
+          <DialogDescription className="text-xs text-slate-400">
             {isEditing
-              ? "Update raw material details and stock levels."
-              : "Register a new raw material in the inventory."}
+              ? "Update raw material configuration details, unit costs, and inventory thresholds."
+              : "Register a new raw material in the plant inventory system."}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="material-name">Material Name</Label>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="material-name" className="text-xs font-bold text-slate-700">Material Name</Label>
             <Input
               id="material-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Cement"
+              placeholder="e.g. Cement (Grade 53)"
+              className="bg-slate-50 border-slate-200 focus:bg-white text-xs h-10"
               required
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Unit</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-slate-700">Measurement Unit</Label>
             <Select
               value={unit}
               onValueChange={(value) => value && setUnit(value as MaterialUnit)}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full bg-slate-50 border-slate-200 text-xs h-10">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Kg">Kg</SelectItem>
-                <SelectItem value="Litre">Litre</SelectItem>
+              <SelectContent className="bg-white border-slate-200">
+                <SelectItem value="Kg">Kg (Kilogram)</SelectItem>
+                <SelectItem value="Litre">Litre (L)</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="available-stock">Available Stock</Label>
+          <div className="grid gap-3 grid-cols-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="available-stock" className="text-xs font-bold text-slate-700">Available</Label>
               <Input
                 id="available-stock"
                 type="number"
@@ -126,11 +136,12 @@ export function MaterialDialog({
                 step="0.1"
                 value={availableStock}
                 onChange={(e) => setAvailableStock(e.target.value)}
+                className="bg-slate-50 border-slate-200 focus:bg-white text-xs h-10"
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="minimum-stock">Min Stock</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="minimum-stock" className="text-xs font-bold text-slate-700">Min Threshold</Label>
               <Input
                 id="minimum-stock"
                 type="number"
@@ -138,28 +149,53 @@ export function MaterialDialog({
                 step="0.1"
                 value={minimumStock}
                 onChange={(e) => setMinimumStock(e.target.value)}
+                className="bg-slate-50 border-slate-200 focus:bg-white text-xs h-10"
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="unit-cost">Cost (₹/{unit})</Label>
-              <Input
-                id="unit-cost"
-                type="number"
-                min="0"
-                step="0.01"
-                value={unitCost}
-                onChange={(e) => setUnitCost(e.target.value)}
-                required
-              />
+            <div className="space-y-1.5">
+              <Label htmlFor="unit-cost" className="text-xs font-bold text-slate-700">Cost (₹/{unit})</Label>
+              <div className="relative">
+                <span className="absolute left-2.5 top-3 text-[10px] font-bold text-slate-400 font-mono">₹</span>
+                <Input
+                  id="unit-cost"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={unitCost}
+                  onChange={(e) => setUnitCost(e.target.value)}
+                  className="pl-5 bg-slate-50 border-slate-200 focus:bg-white text-xs h-10"
+                  required
+                />
+              </div>
             </div>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          {/* Dynamic Warning Alert */}
+          {isLowStockWarning && (
+            <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 border border-amber-200 text-[11px] text-amber-800">
+              <AlertCircle className="size-4 shrink-0 text-amber-600 mt-0.5" />
+              <div>
+                <span className="font-bold">Stock Warning!</span> The entered available stock is below or equal to the minimum safety threshold. This material will report alert status.
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="pt-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+              className="text-xs font-bold uppercase tracking-wider h-10 border-slate-200 cursor-pointer"
+            >
               Cancel
             </Button>
-            <Button type="submit">{isEditing ? "Save Changes" : "Add Material"}</Button>
+            <Button 
+              type="submit"
+              className="text-xs font-bold uppercase tracking-wider h-10 cursor-pointer"
+            >
+              {isEditing ? "Save Changes" : "Register Material"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
