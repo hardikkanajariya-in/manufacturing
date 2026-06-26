@@ -42,6 +42,7 @@ export function RestockLedger() {
   const [quantity, setQuantity] = useState("");
   const [unitCost, setUnitCost] = useState("");
   const [supplier, setSupplier] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
   const [restockDate, setRestockDate] = useState(getTodayString());
 
   const selectedMaterial = materials.find((m) => m.id === materialId);
@@ -61,6 +62,7 @@ export function RestockLedger() {
       setMaterialId(materials[0].id);
       setQuantity("");
       setSupplier("");
+      setInvoiceNumber("");
       setRestockDate(getTodayString());
     }
   }, [dialogOpen, materials]);
@@ -82,6 +84,7 @@ export function RestockLedger() {
       unitCost: cost,
       totalCost: qty * cost,
       supplier: supplier.trim(),
+      invoiceNumber: invoiceNumber.trim() || undefined,
       date: restockDate,
     });
 
@@ -118,6 +121,7 @@ export function RestockLedger() {
                     <TableHead className="font-bold text-xs text-slate-500 py-3 text-right">Quantity</TableHead>
                     <TableHead className="font-bold text-xs text-slate-500 py-3 text-right">Unit Cost</TableHead>
                     <TableHead className="font-bold text-xs text-slate-500 py-3 text-right">Total Cost</TableHead>
+                    <TableHead className="font-bold text-xs text-slate-500 py-3">Invoice</TableHead>
                     <TableHead className="font-bold text-xs text-slate-500 py-3 pr-4">Supplier</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -138,6 +142,9 @@ export function RestockLedger() {
                       </TableCell>
                       <TableCell className="text-right font-mono font-bold text-emerald-600 py-3.5 text-xs tabular-nums">
                         ₹{formatNumber(item.totalCost, 2)}
+                      </TableCell>
+                      <TableCell className="text-slate-500 py-3.5 text-xs font-mono">
+                        {item.invoiceNumber ?? "—"}
                       </TableCell>
                       <TableCell className="text-slate-600 py-3.5 pr-4 text-xs">
                         {item.supplier}
@@ -219,7 +226,7 @@ export function RestockLedger() {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-1.5">
                 <Label htmlFor="supplier-name" className="text-xs font-bold text-slate-700">Supplier / Vendor</Label>
                 <div className="relative">
@@ -236,6 +243,17 @@ export function RestockLedger() {
                     required
                   />
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="invoice-number" className="text-xs font-bold text-slate-700">Invoice / Bill No.</Label>
+                <Input
+                  id="invoice-number"
+                  type="text"
+                  value={invoiceNumber}
+                  onChange={(e) => setInvoiceNumber(e.target.value)}
+                  placeholder="e.g. INV-2026-1042"
+                  className="bg-slate-50 border-slate-200 focus:bg-white text-xs h-10"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="restock-date" className="text-xs font-bold text-slate-700">Date Received</Label>

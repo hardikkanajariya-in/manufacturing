@@ -73,6 +73,7 @@ export interface RestockRecord {
   unitCost: number;
   totalCost: number;
   supplier: string;
+  invoiceNumber?: string;
   date: string;
   createdAt: string;
 }

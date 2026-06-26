@@ -1,623 +1,591 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
   Truck,
-  TrendingDown,
-  ClipboardCopy,
-  Send,
-  Check,
-  Loader2,
-  Info,
+  Plus,
+  Trash2,
+  Receipt,
+  CheckCircle2,
   AlertTriangle,
-  RefreshCw,
+  Building2,
+  FileText,
 } from "lucide-react";
 import { useManufacturing } from "@/context/manufacturing-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatNumber, getTodayString } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
+import type { RestockRecord } from "@/lib/types";
 
-// Supplier profile structures
-interface SupplierProfile {
-  name: string;
+interface SupplierRate {
   materialId: string;
-  materialName: string;
-  email: string;
   unitCost: number;
-  moq: number;
-  leadTime: number; // in days
 }
 
-const SUPPLIERS: SupplierProfile[] = [
+interface Supplier {
+  id: string;
+  name: string;
+  contact: string;
+  paymentTerms: string;
+  materialRates: SupplierRate[];
+}
+
+interface PurchaseLineItem {
+  key: string;
+  materialId: string;
+  quantity: string;
+  unitCost: string;
+}
+
+const SUPPLIERS: Supplier[] = [
   {
+    id: "sup-ultratech",
     name: "Ultratech Cement Ltd",
-    materialId: "mat-cement",
-    materialName: "Cement",
-    email: "procurement@ultratechcement.com",
-    unitCost: 12.0,
-    moq: 1000,
-    leadTime: 3,
+    contact: "procurement@ultratechcement.com",
+    paymentTerms: "Net 30",
+    materialRates: [{ materialId: "mat-cement", unitCost: 12.0 }],
   },
   {
+    id: "sup-narmada",
     name: "Narmada Sands Ltd",
-    materialId: "mat-sand",
-    materialName: "Sand",
-    email: "sales@narmadasands.co.in",
-    unitCost: 2.5,
-    moq: 2000,
-    leadTime: 2,
+    contact: "sales@narmadasands.co.in",
+    paymentTerms: "Net 30",
+    materialRates: [{ materialId: "mat-sand", unitCost: 2.5 }],
   },
   {
+    id: "sup-rajasthan",
     name: "Rajasthan Crushers",
-    materialId: "mat-stone-dust",
-    materialName: "Stone Dust",
-    email: "supply@rajasthancrushers.com",
-    unitCost: 1.8,
-    moq: 1500,
-    leadTime: 4,
+    contact: "supply@rajasthancrushers.com",
+    paymentTerms: "Net 15",
+    materialRates: [{ materialId: "mat-stone-dust", unitCost: 1.8 }],
   },
   {
+    id: "sup-ntpc",
     name: "NTPC Ash Division",
-    materialId: "mat-fly-ash",
-    materialName: "Fly Ash",
-    email: "flyash.sales@ntpc.co.in",
-    unitCost: 3.5,
-    moq: 500,
-    leadTime: 5,
+    contact: "flyash.sales@ntpc.co.in",
+    paymentTerms: "Net 30",
+    materialRates: [{ materialId: "mat-fly-ash", unitCost: 3.5 }],
   },
   {
+    id: "sup-water",
     name: "Municipal Water Board",
-    materialId: "mat-water",
-    materialName: "Water",
-    email: "support@waterboard.gov.in",
-    unitCost: 0.15,
-    moq: 2000,
-    leadTime: 1,
+    contact: "support@waterboard.gov.in",
+    paymentTerms: "Net 15",
+    materialRates: [{ materialId: "mat-water", unitCost: 0.15 }],
   },
 ];
 
-interface PurchaseOrderDraft {
-  poNumber: string;
-  subject: string;
-  emailBody: string;
-  deliveryCommitment: string;
-  terms: string;
+function createLineItem(materialId = "", unitCost = ""): PurchaseLineItem {
+  return {
+    key: `line-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    materialId,
+    quantity: "",
+    unitCost,
+  };
 }
 
-function generatePurchaseOrder(
-  supplier: string,
-  material: string,
-  qty: number,
-  unit: string,
-  cost: number,
-  lead: number
-): PurchaseOrderDraft {
-  const randNum = Math.floor(1000 + Math.random() * 9000);
-  const poNumber = `PO-2026-${randNum}`;
-  const total = qty * cost;
-  const deliveryDate = new Date();
-  deliveryDate.setDate(deliveryDate.getDate() + lead);
-  const formattedDelivery = deliveryDate.toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
+function getSupplierRate(supplier: Supplier | undefined, materialId: string, fallback: number) {
+  const rate = supplier?.materialRates.find((item) => item.materialId === materialId);
+  return rate?.unitCost ?? fallback;
+}
+
+function groupPurchaseBills(restocks: RestockRecord[]) {
+  const groups = new Map<string, RestockRecord[]>();
+
+  restocks.forEach((record) => {
+    const key = `${record.invoiceNumber ?? record.id}-${record.supplier}-${record.date}`;
+    const existing = groups.get(key) ?? [];
+    existing.push(record);
+    groups.set(key, existing);
   });
 
-  const subject = `Urgent Supply Procurement Order: ${poNumber} - CementPro Factory`;
-
-  const emailBody = `Dear Sales Team at ${supplier},\n\nPlease find this formal procurement order from CementPro Factory (Unit 4) for the replenishment of our concrete production aggregates. We would like to purchase the following materials:\n\n• Material: ${material}\n• Order Quantity: ${qty} ${unit}\n• Contract Rate: ₹${cost.toFixed(2)} / ${unit}\n• Total Amount: ₹${total.toFixed(2)} INR\n\nPlease dispatch this cargo to our central receiving bay. As per our supplier agreements, we expect delivery within the ${lead}-day window (no later than ${formattedDelivery}).\n\nKindly reply to confirm receipt and provide dispatch details.\n\nSincerely,\nRajesh Sharma\nPlant Procurement Manager\nCementPro MES`;
-
-  const deliveryCommitment = `Expected on-site receiving date: ${formattedDelivery} (within ${lead} days of dispatch). Standard unloading hours apply.`;
-
-  const terms = `Payment Terms: Net 30 days invoice settlement. Receiving address: CementPro Unit 4 Warehouse, Sector 12, Industrial Area, Gujarat.`;
-
-  return {
-    poNumber,
-    subject,
-    emailBody,
-    deliveryCommitment,
-    terms,
-  };
+  return Array.from(groups.values())
+    .map((lines) => ({
+      invoiceNumber: lines[0].invoiceNumber ?? "—",
+      supplier: lines[0].supplier,
+      date: lines[0].date,
+      lines,
+      total: lines.reduce((sum, line) => sum + line.totalCost, 0),
+    }))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 export function SupplierPortal() {
-  const { materials, productionRecords, addRestock } = useManufacturing();
+  const { materials, restocks, addRestock } = useManufacturing();
 
-  const [poDialogOpen, setPoDialogOpen] = useState(false);
-  const [selectedSupplier, setSelectedSupplier] = useState<SupplierProfile | null>(null);
-  const [orderQuantity, setOrderQuantity] = useState("");
-  const [poLoading, setPoLoading] = useState(false);
-  const [poData, setPoData] = useState<PurchaseOrderDraft | null>(null);
-  const [isCopied, setIsCopied] = useState(false);
-  const [poSuccess, setPoSuccess] = useState(false);
+  const [selectedSupplierId, setSelectedSupplierId] = useState(SUPPLIERS[0]?.id ?? "");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState(getTodayString());
+  const [lineItems, setLineItems] = useState<PurchaseLineItem[]>([createLineItem()]);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  // Calculate daily burn rates based on last 3 days of logs
-  const burnRates = useMemo(() => {
-    const rates: Record<string, number> = {
-      "mat-cement": 250,
-      "mat-sand": 600,
-      "mat-stone-dust": 450,
-      "mat-fly-ash": 80,
-      "mat-water": 120,
-    };
+  const selectedSupplier = SUPPLIERS.find((supplier) => supplier.id === selectedSupplierId);
 
-    if (productionRecords.length === 0) return rates;
+  const lowStockCount = useMemo(
+    () => materials.filter((material) => material.availableStock <= material.minimumStock).length,
+    [materials]
+  );
 
-    // Calculate consumption from logs in last 72 hours
-    const threeDaysAgo = new Date();
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+  const recentBills = useMemo(() => groupPurchaseBills(restocks).slice(0, 8), [restocks]);
 
-    const recentLogs = productionRecords.filter(
-      (pr) => new Date(pr.productionDate) >= threeDaysAgo
+  const billTotal = useMemo(
+    () =>
+      lineItems.reduce((sum, line) => {
+        const qty = Number(line.quantity) || 0;
+        const cost = Number(line.unitCost) || 0;
+        return sum + qty * cost;
+      }, 0),
+    [lineItems]
+  );
+
+  const handleSupplierChange = (supplierId: string | null) => {
+    if (!supplierId) return;
+    setSelectedSupplierId(supplierId);
+    const supplier = SUPPLIERS.find((item) => item.id === supplierId);
+    setLineItems((prev) =>
+      prev.map((line) => {
+        if (!line.materialId) return line;
+        const material = materials.find((item) => item.id === line.materialId);
+        return {
+          ...line,
+          unitCost: getSupplierRate(supplier, line.materialId, material?.unitCost ?? 0).toString(),
+        };
+      })
     );
+  };
 
-    if (recentLogs.length > 0) {
-      // Sum up consumptions
-      const totals: Record<string, number> = {};
-      recentLogs.forEach((log) => {
-        log.consumption.forEach((cons) => {
-          totals[cons.materialId] = (totals[cons.materialId] || 0) + cons.quantity;
-        });
-      });
+  const handleMaterialChange = (key: string, materialId: string) => {
+    const material = materials.find((item) => item.id === materialId);
+    const unitCost = getSupplierRate(selectedSupplier, materialId, material?.unitCost ?? 0);
+    setLineItems((prev) =>
+      prev.map((line) =>
+        line.key === key ? { ...line, materialId, unitCost: unitCost.toString() } : line
+      )
+    );
+  };
 
-      // Divide by 3 for daily average
-      Object.keys(totals).forEach((id) => {
-        rates[id] = Math.max(10, Math.round(totals[id] / 3));
-      });
+  const handleLineFieldChange = (key: string, field: "quantity" | "unitCost", value: string) => {
+    setLineItems((prev) =>
+      prev.map((line) => (line.key === key ? { ...line, [field]: value } : line))
+    );
+  };
+
+  const handleAddLine = () => {
+    const defaultMaterial = materials[0];
+    const unitCost = defaultMaterial
+      ? getSupplierRate(selectedSupplier, defaultMaterial.id, defaultMaterial.unitCost)
+      : 0;
+    setLineItems((prev) => [
+      ...prev,
+      createLineItem(defaultMaterial?.id ?? "", unitCost.toString()),
+    ]);
+  };
+
+  const handleRemoveLine = (key: string) => {
+    setLineItems((prev) => (prev.length === 1 ? prev : prev.filter((line) => line.key !== key)));
+  };
+
+  const resetForm = () => {
+    const defaultMaterial = materials[0];
+    const unitCost = defaultMaterial
+      ? getSupplierRate(selectedSupplier, defaultMaterial.id, defaultMaterial.unitCost)
+      : 0;
+    setInvoiceNumber("");
+    setPurchaseDate(getTodayString());
+    setLineItems([createLineItem(defaultMaterial?.id ?? "", unitCost.toString())]);
+    setFormError(null);
+  };
+
+  const handleSubmitPurchase = (event: React.FormEvent) => {
+    event.preventDefault();
+    setFormError(null);
+    setSubmitSuccess(false);
+
+    if (!selectedSupplier) {
+      setFormError("Select a supplier for this purchase bill.");
+      return;
     }
 
-    return rates;
-  }, [productionRecords]);
-
-  // Inventory forecasts
-  const forecasts = useMemo(() => {
-    return materials.map((mat) => {
-      const burnRate = burnRates[mat.id] || 100;
-      const daysRemaining = mat.availableStock / burnRate;
-      
-      let status: "Adequate" | "Low Stock" | "Critical" = "Adequate";
-      if (daysRemaining <= 2) {
-        status = "Critical";
-      } else if (daysRemaining <= 5) {
-        status = "Low Stock";
-      }
-
-      return {
-        ...mat,
-        burnRate,
-        daysRemaining,
-        status,
-      };
-    });
-  }, [materials, burnRates]);
-
-  // Open PO drafter and calculate recommended replenishment
-  const handleOpenPoDraft = (supplier: SupplierProfile) => {
-    setSelectedSupplier(supplier);
-    const mat = materials.find((m) => m.id === supplier.materialId);
-    const burnRate = burnRates[supplier.materialId] || 100;
-    const available = mat?.availableStock ?? 0;
-    
-    // Safety buffer target is 10 days of operations
-    const targetStock = burnRate * 10;
-    const deficit = targetStock - available;
-    
-    // Quantity recommended must respect MCQ/MOQ
-    const recommended = Math.max(supplier.moq, Math.ceil(deficit));
-    
-    setOrderQuantity(recommended.toString());
-    setPoData(null);
-    setIsCopied(false);
-    setPoSuccess(false);
-    setPoDialogOpen(true);
-  };
-
-  const handleGeneratePo = () => {
-    if (!selectedSupplier || !orderQuantity) return;
-    setPoLoading(true);
-    setPoData(null);
-
-    const unit = materials.find((m) => m.id === selectedSupplier.materialId)?.unit || "Kg";
-
-    try {
-      const draft = generatePurchaseOrder(
-        selectedSupplier.name,
-        selectedSupplier.materialName,
-        Number(orderQuantity),
-        unit,
-        selectedSupplier.unitCost,
-        selectedSupplier.leadTime
-      );
-      setPoData(draft);
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message || "Failed to draft procurement letter.");
-    } finally {
-      setPoLoading(false);
+    if (!invoiceNumber.trim()) {
+      setFormError("Enter the supplier invoice or bill number.");
+      return;
     }
-  };
 
-  const handleCopyPo = () => {
-    if (!poData) return;
-    const fullText = `Subject: ${poData.subject}\n\n${poData.emailBody}\n\nDelivery Terms: ${poData.deliveryCommitment}\n\nStandard Terms: ${poData.terms}`;
-    navigator.clipboard.writeText(fullText);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
-  };
+    const validLines = lineItems
+      .map((line) => {
+        const material = materials.find((item) => item.id === line.materialId);
+        const qty = Number(line.quantity);
+        const cost = Number(line.unitCost);
+        return { line, material, qty, cost };
+      })
+      .filter((entry) => entry.material && entry.qty > 0 && entry.cost >= 0);
 
-  const handleConfirmRestock = () => {
-    if (!selectedSupplier || !orderQuantity || !poData) return;
+    if (validLines.length === 0) {
+      setFormError("Add at least one material line with quantity and unit cost.");
+      return;
+    }
 
-    // Trigger context addRestock to increase stock
-    addRestock({
-      materialId: selectedSupplier.materialId,
-      materialName: selectedSupplier.materialName,
-      quantity: Number(orderQuantity),
-      unit: materials.find((m) => m.id === selectedSupplier.materialId)?.unit || "Kg",
-      unitCost: selectedSupplier.unitCost,
-      totalCost: Number(orderQuantity) * selectedSupplier.unitCost,
-      supplier: selectedSupplier.name,
-      date: getTodayString(),
+    validLines.forEach(({ material, qty, cost }) => {
+      addRestock({
+        materialId: material!.id,
+        materialName: material!.name,
+        quantity: qty,
+        unit: material!.unit,
+        unitCost: cost,
+        totalCost: qty * cost,
+        supplier: selectedSupplier.name,
+        invoiceNumber: invoiceNumber.trim(),
+        date: purchaseDate,
+      });
     });
 
-    setPoSuccess(true);
-    setTimeout(() => {
-      setPoDialogOpen(false);
-    }, 1500);
+    setSubmitSuccess(true);
+    resetForm();
+    setTimeout(() => setSubmitSuccess(false), 2500);
   };
 
   return (
     <div className="space-y-6">
-      {/* KPI Section */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="bg-slate-900 text-white border-slate-800 shadow-sm">
-          <CardContent className="pt-4 pb-4">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Inventory Burn Audit</span>
-            <span className="text-xl font-black mt-1 block">Live Telemetry</span>
-            <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-              Consumptions assessed over past 72h to calculate exact shop floor burn rates.
-            </p>
+        <Card className="bg-white border-slate-200 shadow-sm">
+          <CardContent className="pt-4 pb-4 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                Registered Suppliers
+              </span>
+              <span className="text-2xl font-black text-slate-800 mt-1 block">{SUPPLIERS.length}</span>
+              <p className="text-[10px] text-slate-500 mt-1">Active vendor contracts</p>
+            </div>
+            <div className="size-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600">
+              <Building2 className="size-5" />
+            </div>
           </CardContent>
         </Card>
 
-        {forecasts.some((f) => f.status === "Critical") ? (
-          <Card className="bg-rose-50 border-rose-250 text-rose-800 shadow-sm">
-            <CardContent className="pt-4 pb-4 flex items-start gap-2.5">
-              <AlertTriangle className="size-5 text-rose-600 shrink-0 mt-1 animate-pulse" />
-              <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-500 block">Restock Warnings</span>
-                <span className="text-xl font-black mt-0.5 block">Critical Materials</span>
-                <p className="text-[10px] text-rose-600/90 mt-1 font-medium leading-relaxed">
-                  Raw materials depletion forecast indicates under 48 hours of supply remaining.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="bg-emerald-50 border-emerald-250 text-emerald-800 shadow-sm">
-            <CardContent className="pt-4 pb-4 flex items-start gap-2.5">
-              <Check className="size-5 text-emerald-600 shrink-0 mt-1" />
-              <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-500 block">Inventory Health</span>
-                <span className="text-xl font-black mt-0.5 block">All Stocks Safe</span>
-                <p className="text-[10px] text-emerald-600/90 mt-1 font-medium leading-relaxed">
-                  Daily safety limits met. Minimum 5 days buffer of aggregate and binder.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <Card className="bg-white border-slate-200 shadow-sm">
-          <CardContent className="pt-4 pb-4">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Active Suppliers</span>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-2xl font-black text-slate-800">{SUPPLIERS.length}</span>
-              <span className="text-xs text-slate-400 font-medium">vendors contracted</span>
+        <Card className={cn("shadow-sm", lowStockCount > 0 ? "bg-amber-50 border-amber-200" : "bg-emerald-50 border-emerald-200")}>
+          <CardContent className="pt-4 pb-4 flex items-center justify-between">
+            <div>
+              <span className={cn("text-[10px] font-extrabold uppercase tracking-wider block", lowStockCount > 0 ? "text-amber-600" : "text-emerald-600")}>
+                Low Stock Materials
+              </span>
+              <span className={cn("text-2xl font-black mt-1 block", lowStockCount > 0 ? "text-amber-700" : "text-emerald-700")}>
+                {lowStockCount}
+              </span>
+              <p className={cn("text-[10px] mt-1", lowStockCount > 0 ? "text-amber-600" : "text-emerald-600")}>
+                At or below minimum stock level
+              </p>
             </div>
-            <p className="text-[10px] text-slate-400 mt-1.5 font-medium leading-relaxed">
-              Standard Net-30 contracts. Pricing reviewed against lead-time records.
-            </p>
+            <div className={cn("size-10 rounded-lg flex items-center justify-center", lowStockCount > 0 ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600")}>
+              {lowStockCount > 0 ? <AlertTriangle className="size-5" /> : <CheckCircle2 className="size-5" />}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-slate-900 text-white border-slate-800 shadow-sm">
+          <CardContent className="pt-4 pb-4 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                Purchase Bills Logged
+              </span>
+              <span className="text-2xl font-black mt-1 block">{groupPurchaseBills(restocks).length}</span>
+              <p className="text-[10px] text-slate-400 mt-1">Billed restock entries on record</p>
+            </div>
+            <div className="size-10 bg-slate-800 rounded-lg flex items-center justify-center text-sky-400">
+              <Receipt className="size-5" />
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Main Stock Depletion Forecast Table */}
+      <div className="grid gap-6 xl:grid-cols-5">
+        <Card className="xl:col-span-2 border-slate-200 bg-white shadow-xs">
+          <CardHeader className="py-4 border-b border-slate-100">
+            <CardTitle className="text-sm font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <Truck className="size-4 text-slate-500" />
+              Supplier Directory
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase text-[10px]">
+                    <th className="py-3 pl-4">Supplier</th>
+                    <th className="py-3">Contact</th>
+                    <th className="py-3 pr-4 text-right">Terms</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {SUPPLIERS.map((supplier) => (
+                    <tr
+                      key={supplier.id}
+                      className={cn(
+                        "hover:bg-slate-50/40 cursor-pointer",
+                        selectedSupplierId === supplier.id && "bg-sky-50/60"
+                      )}
+                      onClick={() => handleSupplierChange(supplier.id)}
+                    >
+                      <td className="py-3.5 pl-4">
+                        <span className="font-bold text-slate-700 block">{supplier.name}</span>
+                        <span className="text-[10px] text-slate-400 mt-0.5 block">
+                          {supplier.materialRates
+                            .map((rate) => materials.find((m) => m.id === rate.materialId)?.name)
+                            .filter(Boolean)
+                            .join(", ")}
+                        </span>
+                      </td>
+                      <td className="py-3.5 text-slate-500">{supplier.contact}</td>
+                      <td className="py-3.5 pr-4 text-right">
+                        <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-wider bg-slate-50">
+                          {supplier.paymentTerms}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="xl:col-span-3 border-slate-200 bg-white shadow-xs">
+          <CardHeader className="py-4 border-b border-slate-100">
+            <CardTitle className="text-sm font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <FileText className="size-4 text-sky-600" />
+              New Purchase Bill Entry
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <form onSubmit={handleSubmitPurchase} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+                    Supplier
+                  </Label>
+                  <Select value={selectedSupplierId} onValueChange={handleSupplierChange}>
+                    <SelectTrigger className="bg-slate-50 border-slate-200 text-xs h-10">
+                      <SelectValue placeholder="Select supplier" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-slate-200">
+                      {SUPPLIERS.map((supplier) => (
+                        <SelectItem key={supplier.id} value={supplier.id}>
+                          {supplier.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="invoice-number" className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+                    Invoice / Bill No.
+                  </Label>
+                  <Input
+                    id="invoice-number"
+                    value={invoiceNumber}
+                    onChange={(e) => setInvoiceNumber(e.target.value)}
+                    placeholder="e.g. INV-2026-1042"
+                    className="bg-slate-50 border-slate-200 text-xs h-10"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="purchase-date" className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+                    Bill Date
+                  </Label>
+                  <Input
+                    id="purchase-date"
+                    type="date"
+                    value={purchaseDate}
+                    onChange={(e) => setPurchaseDate(e.target.value)}
+                    className="bg-slate-50 border-slate-200 text-xs h-10"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="border border-slate-100 rounded-xl overflow-hidden">
+                <Table>
+                  <TableHeader className="bg-slate-50/75">
+                    <TableRow className="border-b border-slate-150">
+                      <TableHead className="font-bold text-[10px] text-slate-500 py-2.5 pl-3">Material</TableHead>
+                      <TableHead className="font-bold text-[10px] text-slate-500 py-2.5 text-right w-28">Quantity</TableHead>
+                      <TableHead className="font-bold text-[10px] text-slate-500 py-2.5 text-right w-32">Unit Cost (₹)</TableHead>
+                      <TableHead className="font-bold text-[10px] text-slate-500 py-2.5 text-right w-28">Line Total</TableHead>
+                      <TableHead className="font-bold text-[10px] text-slate-500 py-2.5 pr-3 w-10" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {lineItems.map((line) => {
+                      const qty = Number(line.quantity) || 0;
+                      const cost = Number(line.unitCost) || 0;
+                      const lineTotal = qty * cost;
+                      return (
+                        <TableRow key={line.key} className="border-b border-slate-100">
+                          <TableCell className="py-2 pl-3">
+                            <Select
+                              value={line.materialId}
+                              onValueChange={(value) => value && handleMaterialChange(line.key, value)}
+                            >
+                              <SelectTrigger className="bg-white border-slate-200 text-xs h-9">
+                                <SelectValue placeholder="Select material" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white border-slate-200">
+                                {materials.map((material) => (
+                                  <SelectItem key={material.id} value={material.id}>
+                                    {material.name} ({material.unit})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="py-2 text-right">
+                            <Input
+                              type="number"
+                              min="0.1"
+                              step="0.1"
+                              value={line.quantity}
+                              onChange={(e) => handleLineFieldChange(line.key, "quantity", e.target.value)}
+                              placeholder="0"
+                              className="bg-white border-slate-200 text-xs h-9 text-right font-mono"
+                            />
+                          </TableCell>
+                          <TableCell className="py-2 text-right">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={line.unitCost}
+                              onChange={(e) => handleLineFieldChange(line.key, "unitCost", e.target.value)}
+                              placeholder="0.00"
+                              className="bg-white border-slate-200 text-xs h-9 text-right font-mono"
+                            />
+                          </TableCell>
+                          <TableCell className="py-2 text-right font-mono font-bold text-slate-700 text-xs tabular-nums">
+                            ₹{formatNumber(lineTotal, 2)}
+                          </TableCell>
+                          <TableCell className="py-2 pr-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveLine(line.key)}
+                              className="text-slate-400 hover:text-rose-500 transition-colors p-1"
+                              aria-label="Remove line"
+                            >
+                              <Trash2 className="size-4" />
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAddLine}
+                  className="text-xs font-bold uppercase tracking-wider h-9 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus className="size-4" />
+                  Add Material Line
+                </Button>
+
+                <div className="rounded-xl bg-slate-900 text-white px-4 py-3 flex items-center justify-between sm:min-w-[220px]">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bill Total</span>
+                  <span className="text-lg font-black tabular-nums">₹{formatNumber(billTotal, 2)}</span>
+                </div>
+              </div>
+
+              {formError && (
+                <div className="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-xs text-rose-700">
+                  {formError}
+                </div>
+              )}
+
+              {submitSuccess && (
+                <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-700 flex items-center gap-2">
+                  <CheckCircle2 className="size-4 shrink-0" />
+                  Purchase bill logged. Stock levels updated for all line items.
+                </div>
+              )}
+
+              <Button type="submit" className="w-full sm:w-auto text-xs font-bold uppercase tracking-wider h-10 cursor-pointer">
+                Post Purchase Bill & Restock
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card className="border-slate-200 bg-white shadow-xs">
         <CardHeader className="py-4 border-b border-slate-100 px-6">
           <CardTitle className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">
-            Material depletion & burn rates forecast
+            Recent Purchase Bills
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase text-[10px]">
-                  <th className="py-3 pl-6">Material</th>
-                  <th className="py-3 text-right">Available Stock</th>
-                  <th className="py-3 text-right">Daily Burn Rate</th>
-                  <th className="py-3 text-right">Days Remaining</th>
-                  <th className="py-3 pl-6">Depletion Forecast</th>
-                  <th className="py-3 pr-6 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {forecasts.map((forecast) => {
-                  const supplier = SUPPLIERS.find((s) => s.materialId === forecast.id);
-                  return (
-                    <tr key={forecast.id} className="hover:bg-slate-50/30">
-                      <td className="py-3.5 pl-6 font-bold text-slate-700">
-                        {forecast.name}
-                        <span className="text-[10px] font-mono text-slate-400 block font-normal">
-                          ({forecast.unit})
-                        </span>
-                      </td>
-                      <td className="py-3.5 text-right font-mono font-semibold text-slate-650">
-                        {formatNumber(forecast.availableStock)} {forecast.unit}
-                      </td>
-                      <td className="py-3.5 text-right font-mono font-medium text-slate-500">
-                        {forecast.burnRate} {forecast.unit}/day
-                      </td>
-                      <td className={cn(
-                        "py-3.5 text-right font-mono font-black",
-                        forecast.status === "Critical"
-                          ? "text-rose-600"
-                          : forecast.status === "Low Stock"
-                            ? "text-amber-600"
-                            : "text-emerald-600"
-                      )}>
-                        {forecast.daysRemaining.toFixed(1)} Days
-                      </td>
-                      <td className="py-3.5 pl-6">
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "text-[9px] font-black uppercase tracking-wider px-2 py-0.5 border",
-                            forecast.status === "Adequate"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-250"
-                              : forecast.status === "Low Stock"
-                                ? "bg-amber-50 text-amber-700 border-amber-250 animate-pulse"
-                                : "bg-rose-50 text-rose-700 border-rose-250 animate-pulse"
-                          )}
-                        >
-                          {forecast.status === "Adequate" && "Adequate Cushion"}
-                          {forecast.status === "Low Stock" && "Restock Suggested"}
-                          {forecast.status === "Critical" && "CRITICAL SHORTAGE"}
-                        </Badge>
-                      </td>
-                      <td className="py-3.5 pr-6 text-right">
-                        {supplier && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenPoDraft(supplier)}
-                            className="text-xs flex gap-1 items-center shrink-0 ml-auto border-sky-200 hover:border-sky-500 hover:bg-sky-50 text-sky-700 cursor-pointer"
-                          >
-                            <Truck className="size-3.5" />
-                            Draft restock PO
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Supplier contact directories */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="border-slate-200 bg-white shadow-xs">
-          <CardHeader className="py-4 border-b border-slate-100">
-            <CardTitle className="text-xs font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-1.5">
-              <Truck className="size-4 text-slate-400" />
-              Contracted Supplier Directory
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0 text-xs">
-            <div className="divide-y divide-slate-100">
-              {SUPPLIERS.map((supplier) => (
-                <div key={supplier.name} className="p-4 flex justify-between items-start hover:bg-slate-50/20">
-                  <div>
-                    <h4 className="font-extrabold text-slate-700">{supplier.name}</h4>
-                    <span className="text-[10px] text-slate-400 font-medium block mt-0.5">{supplier.email}</span>
-                    <span className="text-[10px] text-slate-500 font-semibold block mt-1">
-                      Material: {supplier.materialName}
-                    </span>
-                  </div>
-                  <div className="text-right font-mono text-[10px] text-slate-500 space-y-1">
-                    <span className="block">Rate: ₹{supplier.unitCost}/{supplier.materialId === "mat-water" ? "L" : "Kg"}</span>
-                    <span className="block text-slate-400">MOQ: {supplier.moq} units</span>
-                    <span className="block text-sky-600 font-bold bg-sky-50 px-1.5 py-0.5 rounded-md mt-1 inline-block">
-                      Lead: {supplier.leadTime} days
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Info card */}
-        <Card className="border-slate-200 bg-white shadow-xs flex flex-col justify-between">
-          <CardHeader className="py-4 border-b border-slate-100">
-            <CardTitle className="text-xs font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-1.5">
-              <Info className="size-4 text-slate-400" />
-              Procurement & Restock Policy
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-4 text-xs text-slate-500 leading-relaxed font-medium">
-            <p>
-              • <strong>Inventory Targets:</strong> CementPro targets maintaining a minimum of 10 days operating buffer in central storage silos.
-            </p>
-            <p>
-              • <strong>PO Drafting:</strong> Click the "Draft restock PO" button next to any depletion row. The system calculates inventory deficits and generates a formal procurement letter.
-            </p>
-            <p>
-              • <strong>Automated Booking:</strong> Confirming the generated PO instantly logs the transaction into our **Replenishment Ledger** and adds raw stock to our active inventory.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Log Restock / Draft PO Dialog */}
-      <Dialog open={poDialogOpen} onOpenChange={setPoDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] bg-white border border-slate-200 rounded-xl shadow-lg">
-          <DialogHeader className="border-b border-slate-100 pb-3">
-            <DialogTitle className="text-base font-extrabold text-slate-800 flex items-center gap-2">
-              <Truck className="size-5 text-sky-600" />
-              Draft Restock Order: {selectedSupplier?.materialName}
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-400 mt-1">
-              Select replenishment quantities to generate a formal procurement letter.
-            </DialogDescription>
-          </DialogHeader>
-
-          {poSuccess ? (
-            <div className="py-12 text-center space-y-3">
-              <div className="size-12 rounded-full bg-emerald-100 border border-emerald-250 flex items-center justify-center mx-auto text-emerald-600">
-                <Check className="size-6" />
-              </div>
-              <p className="text-sm font-bold text-slate-700 animate-pulse">Restock Logged Successfully!</p>
-              <p className="text-xs text-slate-400">Inventory levels have been refilled in storage silos.</p>
+          {recentBills.length === 0 ? (
+            <div className="text-center py-10 text-sm text-slate-400 border-t border-slate-100">
+              No purchase bills recorded yet.
             </div>
           ) : (
-            <div className="space-y-4 py-4 text-xs">
-              {/* Supplier information cards */}
-              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <div>
-                  <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px] block">Supplier Vendor</span>
-                  <span className="text-xs font-black text-slate-700 mt-0.5 block">{selectedSupplier?.name}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px] block">Contract Rate</span>
-                  <span className="text-xs font-black text-slate-700 mt-0.5 block font-mono">
-                    ₹{selectedSupplier?.unitCost}/{selectedSupplier?.materialId === "mat-water" ? "L" : "Kg"}
-                  </span>
-                </div>
-              </div>
-
-              {/* Order quantity input */}
-              <div className="space-y-1.5">
-                <Label htmlFor="po-qty" className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
-                  Replenishment Order Size ({materials.find((m) => m.id === selectedSupplier?.materialId)?.unit || "Kg"})
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="po-qty"
-                    type="number"
-                    value={orderQuantity}
-                    onChange={(e) => setOrderQuantity(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 text-slate-800 text-xs h-9 flex-1"
-                  />
-                  <Button
-                    type="button"
-                    onClick={handleGeneratePo}
-                    disabled={poLoading || !orderQuantity || Number(orderQuantity) < (selectedSupplier?.moq || 0)}
-                    className="h-9 px-4 text-xs flex gap-1.5 items-center cursor-pointer shrink-0"
-                  >
-                    {poLoading ? (
-                      <>
-                        <Loader2 className="size-3.5 animate-spin" />
-                        Drafting...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="size-3.5" />
-                        Draft PO
-                      </>
-                    )}
-                  </Button>
-                </div>
-                {selectedSupplier && Number(orderQuantity) < selectedSupplier.moq && (
-                  <span className="text-[9px] text-rose-500 font-bold block">
-                    Quantity is below Supplier Minimum Order (MOQ: {selectedSupplier.moq} units).
-                  </span>
-                )}
-              </div>
-
-              {poData && (
-                <div className="space-y-2 border-t border-slate-100 pt-3 animate-fadeIn">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-black text-sky-700 uppercase tracking-wider">
-                      Drafted Purchase Order ({poData.poNumber})
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleCopyPo}
-                      className="text-[9px] font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1 cursor-pointer uppercase bg-sky-50 border border-sky-100 rounded-md px-1.5 py-0.5"
-                    >
-                      {isCopied ? (
-                        <>
-                          <Check className="size-3 text-emerald-500" />
-                          Copied
-                        </>
-                      ) : (
-                        <>
-                          <ClipboardCopy className="size-3" />
-                          Copy PO
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  
-                  {/* Subject */}
-                  <div className="p-2 border border-slate-200 bg-slate-50/50 rounded-lg text-slate-700 leading-tight">
-                    <strong className="text-[9px] uppercase tracking-wider text-slate-400 block mb-0.5">Subject</strong>
-                    {poData.subject}
-                  </div>
-
-                  {/* Body text area */}
-                  <textarea
-                    readOnly
-                    value={poData.emailBody}
-                    rows={6}
-                    className="w-full p-2 border border-slate-200 bg-slate-50/50 rounded-lg text-[10px] font-mono text-slate-600 focus:outline-hidden"
-                  />
-
-                  {/* Commit check warning */}
-                  <div className="flex items-start gap-2 bg-emerald-50/30 border border-emerald-250 p-2.5 rounded-lg text-[10px] text-slate-600">
-                    <Info className="size-4 text-emerald-500 shrink-0 mt-0.5" />
-                    <span>
-                      Clicking <strong>Confirm PO Restock</strong> will book this replenishment to storage levels, adding <strong>{formatNumber(Number(orderQuantity))}</strong> units of {selectedSupplier?.materialName}.
-                    </span>
-                  </div>
-                </div>
-              )}
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase text-[10px]">
+                    <th className="py-3 pl-6">Date</th>
+                    <th className="py-3">Invoice No.</th>
+                    <th className="py-3">Supplier</th>
+                    <th className="py-3">Materials</th>
+                    <th className="py-3 pr-6 text-right">Bill Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {recentBills.map((bill) => (
+                    <tr key={`${bill.invoiceNumber}-${bill.supplier}-${bill.date}`} className="hover:bg-slate-50/30">
+                      <td className="py-3.5 pl-6 text-slate-500 font-medium">
+                        {format(new Date(bill.date), "dd MMM yyyy")}
+                      </td>
+                      <td className="py-3.5 font-mono font-bold text-slate-700">{bill.invoiceNumber}</td>
+                      <td className="py-3.5 text-slate-700">{bill.supplier}</td>
+                      <td className="py-3.5 text-slate-500">
+                        {bill.lines
+                          .map((line) => `${line.materialName} (${formatNumber(line.quantity, 0)} ${line.unit})`)
+                          .join(" · ")}
+                      </td>
+                      <td className="py-3.5 pr-6 text-right font-mono font-black text-emerald-600 tabular-nums">
+                        ₹{formatNumber(bill.total, 2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
-
-          <DialogFooter className="border-t border-slate-100 pt-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setPoDialogOpen(false)}
-              className="text-xs h-9 cursor-pointer"
-            >
-              Cancel
-            </Button>
-            {poData && !poSuccess && (
-              <Button
-                type="button"
-                onClick={handleConfirmRestock}
-                className="text-xs h-9 bg-sky-600 hover:bg-sky-500 text-white cursor-pointer flex gap-1 items-center"
-              >
-                <Check className="size-3.5" />
-                Confirm PO Restock
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </CardContent>
+      </Card>
     </div>
   );
 }

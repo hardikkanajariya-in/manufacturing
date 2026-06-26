@@ -104,7 +104,7 @@ export default function RawMaterialsPage() {
                 : "border-transparent text-slate-400 hover:text-slate-600"
             )}
           >
-            Supplier Directory & Forecasts
+            Suppliers & Purchases
           </button>
         </div>
 
@@ -178,7 +178,7 @@ export default function RawMaterialsPage() {
             <RestockLedger />
           </div>
         ) : (
-          /* Supplier Directory & Forecasts */
+          /* Suppliers & purchase entry */
           <div className="w-full animate-fadeIn">
             <SupplierPortal />
           </div>
