@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { format } from "date-fns";
-import { ArrowDownLeft, ArrowUpRight, Layers } from "lucide-react";
+import { ArrowLeft, ArrowDownLeft, ArrowUpRight, Layers } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -18,6 +18,7 @@ import { formatNumber } from "@/lib/helpers";
 
 interface StockCardLedgerProps {
   materialId: string | null;
+  onBack?: () => void;
 }
 
 interface Transaction {
@@ -31,7 +32,7 @@ interface Transaction {
   timestamp: string;
 }
 
-export function StockCardLedger({ materialId }: StockCardLedgerProps) {
+export function StockCardLedger({ materialId, onBack }: StockCardLedgerProps) {
   const { materials, restocks, productionRecords } = useManufacturing();
 
   const selectedMaterial = materials.find((m) => m.id === materialId);
@@ -110,14 +111,27 @@ export function StockCardLedger({ materialId }: StockCardLedgerProps) {
   return (
     <Card className="bg-white border-slate-200 shadow-sm h-full flex flex-col justify-between">
       <div>
-        <CardHeader className="pb-3 border-b border-slate-100">
-          <CardTitle className="text-base font-extrabold text-slate-800 flex items-center gap-1.5">
-            <Layers className="size-4 text-sky-600" />
-            Stock Card: {selectedMaterial.name}
-          </CardTitle>
-          <p className="text-xs text-slate-400 mt-0.5">
-            In-depth tracking ledger of inventory inflows and outflows
-          </p>
+        <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
+          <div className="flex items-center gap-3">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors shadow-xs cursor-pointer shrink-0"
+                aria-label="Back to raw materials directory"
+              >
+                <ArrowLeft className="size-4" />
+              </button>
+            )}
+            <div>
+              <CardTitle className="text-base font-extrabold text-slate-800 flex items-center gap-1.5">
+                <Layers className="size-4 text-sky-600" />
+                Stock Card: {selectedMaterial.name}
+              </CardTitle>
+              <p className="text-xs text-slate-400 mt-0.5">
+                In-depth tracking ledger of inventory inflows and outflows
+              </p>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4 pt-4">
           {/* Quick summary of the selected material */}
